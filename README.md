@@ -133,18 +133,6 @@ Chi tiết kiến trúc hệ thống xem tại [architecture_diagram.md](archite
 - **Quick Start**: Xem [QUICKSTART.md](QUICKSTART.md) để bắt đầu nhanh
 - **Development**: Xem [DEVELOPMENT_GUIDE.md](DEVELOPMENT_GUIDE.md) để phát triển và mở rộng
 
-## Kết Quả Mong Đợi
-
-### MedQA Benchmark
-- **Baseline**: ~40-50% accuracy (random: 25%)
-- **Target**: 60-70% accuracy với multi-agent approach
-- **SOTA**: 80%+ (với fine-tuned models)
-
-### PubMedQA Benchmark
-- **Baseline**: ~50-60% accuracy (random: 33%)
-- **Target**: 70-80% accuracy
-- **SOTA**: 85%+ (với domain-specific models)
-
 ## Ví Dụ Output
 
 ```
