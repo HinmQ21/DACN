@@ -5,19 +5,22 @@ Hệ thống multi-agent sử dụng Gemini, LangChain và LangGraph để trả
 ## Workflow
 
 ```
-Input Question → Coordinator → 
-                                    ↓
-    ┌───────────┴───────────┐
-    ↓                                                             ↓
-Web search                                   Reasoning Agent
-    ↓                                                             ↓
-    └───────────┬───────────┘
-                ↓
-           Validator
-                ↓
-        Answer Generator
-                ↓
-            Output
+            Input Question 
+                 ↓
+             Coordinator
+                 ↓
+ ┌───────────────┴───────────────┐
+ ↓                               ↓
+Web Search                Reasoning Agent
+ ↓                               ↓
+ └───────────────┬───────────────┘
+                 ↓
+             Validator
+                 ↓
+         Answer Generator
+                 ↓
+              Output
+
 ```
 
 ## Cấu trúc thư mục
