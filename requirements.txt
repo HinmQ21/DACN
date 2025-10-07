@@ -1,0 +1,14 @@
+langchain==0.3.7
+langchain-google-genai==2.0.4
+langchain-community==0.3.5
+langgraph==0.2.45
+langchain-core==0.3.15
+tavily-python==0.5.0
+python-dotenv==1.0.0
+pandas==2.2.2
+datasets==3.1.0
+biopython==1.84
+tqdm==4.66.5
+numpy==1.26.4
+scikit-learn==1.5.2
+
