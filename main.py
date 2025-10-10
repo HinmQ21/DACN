@@ -56,11 +56,17 @@ def main():
     
     print("\nProcessing... (this may take a minute)")
     
+    import time
+    # Time start
+    start_time = time.time()
+    
     result = workflow.run(
         question=args.question,
         options=args.options,
         question_type=args.type
     )
+    
+    elapsed_time = time.time() - start_time
     
     # Display results
     print("\n" + "="*60)
@@ -70,6 +76,7 @@ def main():
     print(f"\nExplanation: {result['explanation']}")
     print(f"\nConfidence: {result['confidence']:.2f}")
     print(f"Sources used: {result['sources_count']}")
+    print(f"Time taken: {elapsed_time:.2f} seconds")
     
     if args.verbose:
         print("\n" + "-"*60)

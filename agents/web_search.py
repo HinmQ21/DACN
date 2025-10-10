@@ -26,15 +26,15 @@ class WebSearchAgent:
         Entrez.email = "medical_agent@example.com"
         
         self.synthesis_prompt = ChatPromptTemplate.from_messages([
-            ("system", """Bạn là một chuyên gia y khoa tổng hợp thông tin từ các nguồn tìm kiếm.
-Nhiệm vụ của bạn là phân tích và tổng hợp thông tin từ các kết quả tìm kiếm.
+            ("system", """You are a medical expert who synthesizes information from search sources.
+Your task is to analyze and synthesize information from search results.
 
-Hãy:
-1. Tóm tắt các thông tin quan trọng
-2. Đánh giá độ tin cậy của nguồn
-3. Trích xuất các bằng chứng liên quan đến câu hỏi
-4. Ghi chú các mâu thuẫn nếu có"""),
-            ("human", "Câu hỏi: {question}\n\nKết quả tìm kiếm:\n{search_results}\n\nHãy tổng hợp thông tin.")
+Please:
+1. Summarize important information
+2. Evaluate source credibility
+3. Extract evidence relevant to the question
+4. Note any contradictions if present"""),
+            ("human", "Question: {question}\n\nSearch results:\n{search_results}\n\nPlease synthesize the information.")
         ])
     
     def search_tavily(self, query: str) -> List[Dict[str, Any]]:
@@ -145,7 +145,7 @@ Hãy:
             synthesis = (self.synthesis_prompt | self.llm).invoke(synthesis_input)
             synthesis_text = synthesis.content if hasattr(synthesis, 'content') else str(synthesis)
         else:
-            synthesis_text = "Không tìm thấy thông tin liên quan."
+            synthesis_text = "No relevant information found."
         
         return {
             "tavily_results": tavily_results,

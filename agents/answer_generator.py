@@ -14,57 +14,57 @@ class AnswerGeneratorAgent:
         # Use answer_generator-specific configuration
         self.llm = ChatGoogleGenerativeAI(**Config.get_llm_config('answer_generator'))
         
-        # Template cho câu hỏi multiple choice
+        # Template for multiple choice questions
         self.mc_prompt = ChatPromptTemplate.from_messages([
-            ("system", """Bạn là một bác sĩ chuyên khoa đưa ra câu trả lời chính xác cho câu hỏi y tế.
+            ("system", """You are a specialist physician providing accurate answers to medical questions.
 
-Dựa trên:
-- Kết quả tìm kiếm web
-- Suy luận logic
-- Đánh giá từ validator
+Based on:
+- Web search results
+- Logical reasoning
+- Validator assessment
 
-Hãy tổng hợp và đưa ra câu trả lời CHÍNH XÁC NHẤT.
+Please synthesize and provide the MOST ACCURATE answer.
 
-Với câu hỏi multiple choice, trả lời theo format:
-ĐÁP ÁN: [A/B/C/D/E]
-GIẢI THÍCH: [giải thích ngắn gọn tại sao chọn đáp án này]
-NGUỒN: [tóm tắt bằng chứng hỗ trợ]"""),
-            ("human", """Câu hỏi: {question}
+For multiple choice questions, respond in this format:
+ANSWER: [A/B/C/D/E]
+EXPLANATION: [brief explanation of why this answer is chosen]
+SOURCE: [summary of supporting evidence]"""),
+            ("human", """Question: {question}
 
 {options_text}
 
-Thông tin từ Web Search:
+Information from Web Search:
 {web_info}
 
-Suy luận:
+Reasoning:
 {reasoning_info}
 
-Đánh giá Validator:
+Validator Assessment:
 {validation_info}
 
-Hãy đưa ra câu trả lời cuối cùng.""")
+Please provide the final answer.""")
         ])
         
-        # Template cho câu hỏi yes/no
+        # Template for yes/no questions
         self.yesno_prompt = ChatPromptTemplate.from_messages([
-            ("system", """Bạn là một bác sĩ chuyên khoa đưa ra câu trả lời chính xác cho câu hỏi y tế.
+            ("system", """You are a specialist physician providing accurate answers to medical questions.
 
-Với câu hỏi yes/no, trả lời theo format:
-ĐÁP ÁN: yes/no
-GIẢI THÍCH: [giải thích chi tiết]
-ĐỘ TIN CẬY: [high/medium/low]"""),
-            ("human", """Câu hỏi: {question}
+For yes/no questions, respond in this format:
+ANSWER: yes/no
+EXPLANATION: [detailed explanation]
+CONFIDENCE: [high/medium/low]"""),
+            ("human", """Question: {question}
 
-Thông tin từ Web Search:
+Information from Web Search:
 {web_info}
 
-Suy luận:
+Reasoning:
 {reasoning_info}
 
-Đánh giá Validator:
+Validator Assessment:
 {validation_info}
 
-Hãy đưa ra câu trả lời cuối cùng.""")
+Please provide the final answer.""")
         ])
     
     def generate(
@@ -103,7 +103,7 @@ Hãy đưa ra câu trả lời cuối cùng.""")
         
         # Choose prompt based on question type
         if question_type == "multiple_choice" and options:
-            options_text = "Các lựa chọn:\n" + "\n".join([f"{opt}" for opt in options])
+            options_text = "Options:\n" + "\n".join([f"{opt}" for opt in options])
             prompt = self.mc_prompt
         else:
             options_text = ""
@@ -127,13 +127,13 @@ Hãy đưa ra câu trả lời cuối cùng.""")
         lines = result.split('\n')
         for i, line in enumerate(lines):
             line_upper = line.strip().upper()
-            if line_upper.startswith('ĐÁP ÁN:') or line_upper.startswith('DAP AN:'):
+            if line_upper.startswith('ANSWER:'):
                 answer = line.split(':', 1)[1].strip() if ':' in line else ''
-            elif line_upper.startswith('GIẢI THÍCH:') or line_upper.startswith('GIAI THICH:'):
+            elif line_upper.startswith('EXPLANATION:'):
                 # Get all following lines until next section
                 explanation = line.split(':', 1)[1].strip() if ':' in line else ''
                 for j in range(i+1, len(lines)):
-                    if ':' in lines[j] and any(keyword in lines[j].upper() for keyword in ['NGUỒN', 'ĐỘ TIN CẬY', 'NGUON', 'DO TIN CAY']):
+                    if ':' in lines[j] and any(keyword in lines[j].upper() for keyword in ['SOURCE', 'CONFIDENCE']):
                         break
                     explanation += ' ' + lines[j].strip()
         

@@ -15,43 +15,43 @@ class ValidatorAgent:
         self.llm = ChatGoogleGenerativeAI(**Config.get_llm_config('validator'))
         
         self.prompt = ChatPromptTemplate.from_messages([
-            ("system", """Bạn là một validator chuyên nghiệp trong hệ thống y tế.
-Nhiệm vụ của bạn là kiểm tra và đánh giá:
+            ("system", """You are a professional validator in a medical system.
+Your task is to check and evaluate:
 
-1. TÍNH NHẤT QUÁN:
-   - Kết quả web search và reasoning có nhất quán không?
-   - Có mâu thuẫn giữa các nguồn thông tin không?
+1. CONSISTENCY:
+   - Are the web search and reasoning results consistent?
+   - Are there any contradictions between information sources?
 
-2. CHẤT LƯỢNG BẰNG CHỨNG:
-   - Độ tin cậy của nguồn thông tin (0-1)
-   - Tính cập nhật của thông tin
-   - Tính phù hợp với câu hỏi
+2. EVIDENCE QUALITY:
+   - Reliability of information sources (0-1)
+   - Timeliness of information
+   - Relevance to the question
 
-3. CHẤT LƯỢNG SUY LUẬN:
-   - Logic suy luận có chặt chẽ không? (0-1)
-   - Có bỏ sót bước nào không?
+3. REASONING QUALITY:
+   - Is the reasoning logic rigorous? (0-1)
+   - Are there any missing steps?
 
-Trả về đánh giá theo format JSON:
+Return evaluation in JSON format:
 {{
     "is_consistent": true/false,
-    "consistency_explanation": "giải thích",
+    "consistency_explanation": "explanation",
     "evidence_quality": 0.0-1.0,
-    "evidence_issues": ["vấn đề 1", "vấn đề 2"],
+    "evidence_issues": ["issue 1", "issue 2"],
     "reasoning_quality": 0.0-1.0,
-    "reasoning_issues": ["vấn đề 1", "vấn đề 2"],
-    "conflicts": ["mâu thuẫn 1", "mâu thuẫn 2"],
+    "reasoning_issues": ["issue 1", "issue 2"],
+    "conflicts": ["conflict 1", "conflict 2"],
     "overall_confidence": 0.0-1.0,
     "recommendation": "proceed/revise/reject"
 }}"""),
-            ("human", """Câu hỏi: {question}
+            ("human", """Question: {question}
 
-Kết quả Web Search:
+Web Search Results:
 {web_search_result}
 
-Kết quả Reasoning:
+Reasoning Results:
 {reasoning_result}
 
-Hãy đánh giá và kiểm chứng.""")
+Please evaluate and validate.""")
         ])
     
     def validate(

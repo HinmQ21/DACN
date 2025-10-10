@@ -51,7 +51,7 @@ class MedicalQAWorkflow:
         self.graph = self._build_graph()
     
     def _coordinator_node(self, state: AgentState) -> AgentState:
-        """Node: Coordinator phân tích câu hỏi."""
+        """Node: Coordinator analyzes the question."""
         try:
             analysis = self.coordinator.analyze(state['question'])
             state['analysis'] = analysis
@@ -78,7 +78,7 @@ class MedicalQAWorkflow:
         return state
     
     def _reasoning_node(self, state: AgentState) -> AgentState:
-        """Node: Reasoning."""
+        """Node: Reasoning agent performs logical analysis."""
         try:
             analysis = state.get('analysis', {})
             if analysis.get('needs_reasoning', True):
@@ -95,7 +95,7 @@ class MedicalQAWorkflow:
         return state
     
     def _validator_node(self, state: AgentState) -> AgentState:
-        """Node: Validator kiểm chứng."""
+        """Node: Validator validates and verifies results."""
         try:
             validation = self.validator.validate(
                 question=state['question'],
@@ -113,7 +113,7 @@ class MedicalQAWorkflow:
         return state
     
     def _answer_generator_node(self, state: AgentState) -> AgentState:
-        """Node: Answer generator tạo câu trả lời cuối."""
+        """Node: Answer generator produces final answer."""
         try:
             answer = self.answer_generator.generate(
                 question=state['question'],
@@ -130,7 +130,7 @@ class MedicalQAWorkflow:
         return state
     
     def _parallel_search_and_reason(self, state: AgentState) -> AgentState:
-        """Node: Chạy parallel web search và reasoning."""
+        """Node: Run parallel web search and reasoning."""
         with ThreadPoolExecutor(max_workers=2) as executor:
             # Submit both tasks
             web_future = executor.submit(self._web_search_node, state.copy())
@@ -156,7 +156,7 @@ class MedicalQAWorkflow:
         return state
     
     def _build_graph(self) -> StateGraph:
-        """Xây dựng workflow graph."""
+        """Build workflow graph."""
         workflow = StateGraph(AgentState)
         
         # Add nodes
@@ -181,15 +181,15 @@ class MedicalQAWorkflow:
         question_type: str = "multiple_choice"
     ) -> Dict[str, Any]:
         """
-        Chạy workflow cho một câu hỏi.
+        Run workflow for a question.
         
         Args:
-            question: Câu hỏi cần trả lời
-            options: Các lựa chọn (nếu có)
-            question_type: Loại câu hỏi
+            question: Question to answer
+            options: Answer options (if any)
+            question_type: Question type
             
         Returns:
-            Dictionary chứa kết quả cuối cùng
+            Dictionary containing final results
         """
         initial_state = {
             "question": question,

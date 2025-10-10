@@ -15,25 +15,25 @@ class ReasoningAgent:
         self.llm = ChatGoogleGenerativeAI(**Config.get_llm_config('reasoning'))
         
         self.prompt = ChatPromptTemplate.from_messages([
-            ("system", """Bạn là một bác sĩ chuyên khoa với kiến thức y tế sâu rộng.
-Nhiệm vụ của bạn là suy luận logic để trả lời câu hỏi y tế dựa trên:
-1. Kiến thức y khoa cơ bản
-2. Sinh lý học và sinh hóa
-3. Dược lý học
-4. Chẩn đoán lâm sàng
-5. Cơ chế bệnh sinh
+            ("system", """You are a specialized physician with extensive medical knowledge.
+Your task is to provide logical reasoning to answer medical questions based on:
+1. Fundamental medical knowledge
+2. Physiology and biochemistry
+3. Pharmacology
+4. Clinical diagnosis
+5. Pathophysiology
 
-Hãy sử dụng phương pháp suy luận từng bước (step-by-step reasoning):
-1. Phân tích câu hỏi
-2. Xác định kiến thức nền tảng liên quan
-3. Áp dụng logic y khoa
-4. Đưa ra kết luận
+Use step-by-step reasoning approach:
+1. Analyze the question
+2. Identify relevant foundational knowledge
+3. Apply medical logic
+4. Draw conclusions
 
-Trả lời theo format:
-PHÂN TÍCH: [phân tích câu hỏi]
-KIẾN THỨC: [kiến thức y khoa liên quan]
-SUY LUẬN: [quá trình suy luận từng bước]
-KẾT LUẬN: [kết luận cuối cùng]"""),
+Respond in this format:
+ANALYSIS: [question analysis]
+KNOWLEDGE: [relevant medical knowledge]
+REASONING: [step-by-step reasoning process]
+CONCLUSION: [final conclusion]"""),
             ("human", "{question}")
         ])
         
@@ -41,18 +41,18 @@ KẾT LUẬN: [kết luận cuối cùng]"""),
     
     def reason(self, question: str, context: str = None) -> Dict[str, Any]:
         """
-        Thực hiện suy luận logic.
+        Perform logical reasoning.
         
         Args:
-            question: Câu hỏi cần suy luận
-            context: Ngữ cảnh bổ sung (nếu có)
+            question: Question to reason about
+            context: Additional context (if any)
             
         Returns:
-            Dictionary chứa kết quả suy luận
+            Dictionary containing reasoning results
         """
         full_question = question
         if context:
-            full_question = f"Câu hỏi: {question}\n\nNgữ cảnh bổ sung: {context}"
+            full_question = f"Question: {question}\n\nAdditional context: {context}"
         
         reasoning_result = self.chain.invoke({"question": full_question})
         
@@ -69,16 +69,16 @@ KẾT LUẬN: [kết luận cuối cùng]"""),
         
         for line in lines:
             line_upper = line.strip().upper()
-            if line_upper.startswith('PHÂN TÍCH:'):
+            if line_upper.startswith('ANALYSIS:'):
                 current_section = 'analysis'
                 sections['analysis'] = line.split(':', 1)[1].strip() if ':' in line else ''
-            elif line_upper.startswith('KIẾN THỨC:'):
+            elif line_upper.startswith('KNOWLEDGE:'):
                 current_section = 'knowledge'
                 sections['knowledge'] = line.split(':', 1)[1].strip() if ':' in line else ''
-            elif line_upper.startswith('SUY LUẬN:'):
+            elif line_upper.startswith('REASONING:'):
                 current_section = 'reasoning_steps'
                 sections['reasoning_steps'] = line.split(':', 1)[1].strip() if ':' in line else ''
-            elif line_upper.startswith('KẾT LUẬN:'):
+            elif line_upper.startswith('CONCLUSION:'):
                 current_section = 'conclusion'
                 sections['conclusion'] = line.split(':', 1)[1].strip() if ':' in line else ''
             elif current_section and line.strip():

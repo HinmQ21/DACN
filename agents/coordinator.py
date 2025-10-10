@@ -15,21 +15,21 @@ class CoordinatorAgent:
         self.llm = ChatGoogleGenerativeAI(**Config.get_llm_config('coordinator'))
         
         self.prompt = ChatPromptTemplate.from_messages([
-            ("system", """Bạn là một coordinator agent trong hệ thống y tế multi-agent.
-Nhiệm vụ của bạn là phân tích câu hỏi y tế và quyết định chiến lược tìm kiếm.
+            ("system", """You are a coordinator agent in a multi-agent medical system.
+Your task is to analyze medical questions and determine the search strategy.
 
-Phân tích các yếu tố:
-1. Loại câu hỏi (chẩn đoán, điều trị, sinh lý, dược lý, v.v.)
-2. Độ phức tạp của câu hỏi
-3. Từ khóa quan trọng để tìm kiếm
-4. Liệu cần tìm kiếm web hay chỉ cần suy luận
-5. Mức độ ưu tiên giữa web search và reasoning
+Analyze the following factors:
+1. Question type (diagnosis, treatment, physiology, pharmacology, etc.)
+2. Question complexity
+3. Key terms for searching
+4. Whether web search is needed or reasoning alone is sufficient
+5. Priority level between web search and reasoning
 
-Trả về phân tích ngắn gọn theo format JSON:
+Return a concise analysis in JSON format:
 {{
-    "question_type": "loại câu hỏi",
+    "question_type": "question type",
     "complexity": "low/medium/high",
-    "key_terms": ["từ khóa 1", "từ khóa 2"],
+    "key_terms": ["keyword 1", "keyword 2"],
     "needs_web_search": true/false,
     "needs_reasoning": true/false,
     "search_priority": "high/medium/low",
