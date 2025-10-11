@@ -18,7 +18,8 @@ def print_metrics(metrics: dict, dataset_name: str):
     print(f"Recall: {metrics['recall']:.4f}")
     print(f"F1 Score: {metrics['f1_score']:.4f}")
     print(f"\nAverage Confidence: {metrics['avg_confidence']:.4f}")
-    print(f"Average Time per Question: {metrics['avg_time_per_question']:.2f}s")
+    print(f"Structured Parse Success Rate: {metrics.get('parsed_success_rate', 0):.2%} ({metrics.get('parsed_success_count', 0)}/{metrics['total_count']})")
+    print(f"\nAverage Time per Question: {metrics['avg_time_per_question']:.2f}s")
     print(f"Total Time: {metrics['total_time']:.2f}s")
     print("="*60)
 

@@ -212,6 +212,7 @@ class MedicalQAWorkflow:
             "explanation": final_state.get('final_answer', {}).get('explanation', ''),
             "confidence": final_state.get('final_answer', {}).get('confidence', 0.0),
             "sources_count": final_state.get('final_answer', {}).get('sources_count', 0),
+            "parsed_successfully": final_state.get('final_answer', {}).get('parsed_successfully', False),
             "coordinator_analysis": final_state.get('analysis', {}),
             "validation": final_state.get('validation_result', {}),
             "error": final_state.get('error')

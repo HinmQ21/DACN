@@ -121,6 +121,7 @@ class PubMedQAEvaluator:
                     'explanation': result.get('explanation', ''),
                     'confidence': result.get('confidence', 0.0),
                     'sources_count': result.get('sources_count', 0),
+                    'parsed_successfully': result.get('parsed_successfully', False),
                     'time': elapsed_time,
                     'error': result.get('error')
                 })
@@ -146,6 +147,11 @@ class PubMedQAEvaluator:
         
         avg_confidence = sum(r.get('confidence', 0) for r in detailed_results) / len(detailed_results) if detailed_results else 0
         metrics['avg_confidence'] = avg_confidence
+        
+        # Track structured parsing success rate
+        parsed_success_count = sum(1 for r in detailed_results if r.get('parsed_successfully', False))
+        metrics['parsed_success_rate'] = parsed_success_count / len(detailed_results) if detailed_results else 0
+        metrics['parsed_success_count'] = parsed_success_count
         
         # Save results
         if save_results:

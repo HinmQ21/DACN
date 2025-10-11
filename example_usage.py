@@ -107,8 +107,8 @@ def main():
     
     # Run examples
     example_multiple_choice()
-    example_yes_no()
-    example_clinical_reasoning()
+    # example_yes_no()
+    # example_clinical_reasoning()
     
     print("\n\n" + "="*60)
     print("Examples completed!")
