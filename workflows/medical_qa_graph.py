@@ -217,13 +217,4 @@ class MedicalQAWorkflow:
             "validation": final_state.get('validation_result', {}),
             "error": final_state.get('error')
         }
-    
-    def visualize(self) -> str:
-        """Visualize workflow graph."""
-        try:
-            from IPython.display import Image, display
-            display(Image(self.graph.get_graph().draw_mermaid_png()))
-            return "Graph visualized"
-        except Exception as e:
-            return f"Visualization not available: {e}"
 
