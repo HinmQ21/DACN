@@ -53,15 +53,19 @@ class MedicalQAWorkflow:
     def _coordinator_node(self, state: AgentState) -> AgentState:
         """Node: Coordinator analyzes the question."""
         try:
+            print("[DEBUG] Running Coordinator...")
             analysis = self.coordinator.analyze(state['question'])
             state['analysis'] = analysis
+            print("[DEBUG] Coordinator completed successfully")
         except Exception as e:
+            print(f"[DEBUG] Coordinator FAILED: {str(e)}")
             state['error'] = f"Coordinator error: {str(e)}"
         return state
     
     def _web_search_node(self, state: AgentState) -> AgentState:
         """Node: Web search."""
         try:
+            print("[DEBUG] Running Web Search...")
             analysis = state.get('analysis', {})
             if analysis.get('needs_web_search', True):
                 key_terms = analysis.get('key_terms', [])
@@ -72,7 +76,9 @@ class MedicalQAWorkflow:
                     'synthesis': 'Web search skipped based on coordinator analysis',
                     'total_sources': 0
                 }
+            print("[DEBUG] Web Search completed successfully")
         except Exception as e:
+            print(f"[DEBUG] Web Search FAILED: {str(e)}")
             state['error'] = f"Web search error: {str(e)}"
             state['web_search_result'] = {'synthesis': 'Error in web search', 'total_sources': 0}
         return state

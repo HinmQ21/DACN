@@ -35,6 +35,16 @@ def example_multiple_choice():
     print(f"Explanation: {result['explanation']}")
     print(f"Confidence: {result['confidence']:.2f}")
     print(f"Sources: {result['sources_count']}")
+    
+    # Debug: Show actual error if any
+    if result.get('error'):
+        print(f"\n[DEBUG] Error: {result['error']}")
+    
+    # Debug: Show full result for troubleshooting
+    if not result['answer']:
+        print("\n[DEBUG] Full result for troubleshooting:")
+        import json
+        print(json.dumps({k: str(v)[:200] for k, v in result.items()}, indent=2))
 
 
 def example_yes_no():

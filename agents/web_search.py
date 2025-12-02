@@ -6,6 +6,7 @@ from langchain_core.prompts import ChatPromptTemplate
 from typing import List, Dict, Any
 from Bio import Entrez
 from utils.config import Config
+from concurrent.futures import ThreadPoolExecutor, as_completed
 import time
 
 
@@ -120,9 +121,16 @@ Please:
         if key_terms:
             search_query = " ".join(key_terms)
         
-        # Parallel search
-        tavily_results = self.search_tavily(search_query)
-        pubmed_results = self.search_pubmed(search_query)
+        # Parallel search using ThreadPoolExecutor
+        tavily_results = []
+        pubmed_results = []
+        
+        with ThreadPoolExecutor(max_workers=2) as executor:
+            tavily_future = executor.submit(self.search_tavily, search_query)
+            pubmed_future = executor.submit(self.search_pubmed, search_query)
+            
+            tavily_results = tavily_future.result()
+            pubmed_results = pubmed_future.result()
         
         # Format results for synthesis
         all_results = []
