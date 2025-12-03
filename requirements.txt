@@ -12,3 +12,8 @@ tqdm==4.66.5
 numpy==1.26.4
 scikit-learn==1.5.2
 
+# Medprompt dependencies
+sentence-transformers==2.2.2    # For embedding generation
+faiss-cpu==1.7.4                # For efficient similarity search (optional, falls back to numpy)
+torch>=2.0.0                    # Required by sentence-transformers
+transformers>=4.30.0            # Required by sentence-transformers

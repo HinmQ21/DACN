@@ -24,6 +24,11 @@ Thumbs.db
 # Logs
 *.log
 
+# Data and cache
+data/
+cache/
+
+# Datasets
 MedQA/
 
 *.md

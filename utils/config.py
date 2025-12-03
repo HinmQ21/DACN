@@ -40,6 +40,36 @@ class Config:
     MAX_SEARCH_RESULTS: int = 5
     PUBMED_MAX_RESULTS: int = 5
     
+    # =====================================================
+    # Medprompt Configuration
+    # =====================================================
+    
+    # Embedding Configuration
+    EMBEDDING_MODEL: str = os.getenv(
+        "EMBEDDING_MODEL", 
+        "pritamdeka/S-PubMedBert-MS-MARCO"
+    )
+    EMBEDDING_CACHE_DIR: str = os.getenv("EMBEDDING_CACHE_DIR", "./cache/embeddings")
+    
+    # Few-shot Selection Configuration
+    FEW_SHOT_K: int = int(os.getenv("FEW_SHOT_K", "3"))  # Number of similar examples
+    FEW_SHOT_MIN_SIMILARITY: float = float(os.getenv("FEW_SHOT_MIN_SIMILARITY", "0.3"))
+    KNN_INDEX_PATH: str = os.getenv("KNN_INDEX_PATH", "./data/knowledge_base/medqa/train_index.pkl")
+    ENABLE_FEW_SHOT: bool = os.getenv("ENABLE_FEW_SHOT", "true").lower() == "true"
+    
+    # Chain-of-Thought Configuration
+    ENABLE_COT: bool = os.getenv("ENABLE_COT", "true").lower() == "true"
+    COT_DETAILED: bool = os.getenv("COT_DETAILED", "true").lower() == "true"
+    
+    # Choice Shuffling Ensemble Configuration
+    ENABLE_ENSEMBLE: bool = os.getenv("ENABLE_ENSEMBLE", "true").lower() == "true"
+    ENSEMBLE_VARIANTS: int = int(os.getenv("ENSEMBLE_VARIANTS", "5"))  # Number of shuffled variants
+    ENSEMBLE_CONFIDENCE_THRESHOLD: float = float(os.getenv("ENSEMBLE_CONFIDENCE_THRESHOLD", "0.6"))
+    
+    # Self-consistency Configuration (for high-stakes questions)
+    ENABLE_SELF_CONSISTENCY: bool = os.getenv("ENABLE_SELF_CONSISTENCY", "false").lower() == "true"
+    SELF_CONSISTENCY_SAMPLES: int = int(os.getenv("SELF_CONSISTENCY_SAMPLES", "3"))
+    
     @classmethod
     def validate(cls) -> bool:
         """Validate required configuration."""
@@ -90,4 +120,55 @@ class Config:
             "temperature": temperature,
             "google_api_key": cls.GOOGLE_API_KEY
         }
-
+    
+    @classmethod
+    def get_medprompt_config(cls) -> dict:
+        """
+        Get Medprompt-specific configuration.
+        
+        Returns:
+            Dictionary with all Medprompt settings
+        """
+        return {
+            # Embedding
+            "embedding_model": cls.EMBEDDING_MODEL,
+            "embedding_cache_dir": cls.EMBEDDING_CACHE_DIR,
+            
+            # Few-shot
+            "enable_few_shot": cls.ENABLE_FEW_SHOT,
+            "few_shot_k": cls.FEW_SHOT_K,
+            "few_shot_min_similarity": cls.FEW_SHOT_MIN_SIMILARITY,
+            "knn_index_path": cls.KNN_INDEX_PATH,
+            
+            # CoT
+            "enable_cot": cls.ENABLE_COT,
+            "cot_detailed": cls.COT_DETAILED,
+            
+            # Ensemble
+            "enable_ensemble": cls.ENABLE_ENSEMBLE,
+            "ensemble_variants": cls.ENSEMBLE_VARIANTS,
+            "ensemble_confidence_threshold": cls.ENSEMBLE_CONFIDENCE_THRESHOLD,
+            
+            # Self-consistency
+            "enable_self_consistency": cls.ENABLE_SELF_CONSISTENCY,
+            "self_consistency_samples": cls.SELF_CONSISTENCY_SAMPLES,
+        }
+    
+    @classmethod
+    def print_config(cls):
+        """Print current configuration for debugging."""
+        print("=" * 60)
+        print("Current Configuration")
+        print("=" * 60)
+        print(f"\n[LLM Settings]")
+        print(f"  Default Model: {cls.GEMINI_MODEL}")
+        print(f"  Temperature: {cls.TEMPERATURE}")
+        
+        print(f"\n[Medprompt Settings]")
+        print(f"  Embedding Model: {cls.EMBEDDING_MODEL}")
+        print(f"  Few-shot Enabled: {cls.ENABLE_FEW_SHOT}")
+        print(f"  Few-shot K: {cls.FEW_SHOT_K}")
+        print(f"  CoT Enabled: {cls.ENABLE_COT}")
+        print(f"  Ensemble Enabled: {cls.ENABLE_ENSEMBLE}")
+        print(f"  Ensemble Variants: {cls.ENSEMBLE_VARIANTS}")
+        print("=" * 60)
