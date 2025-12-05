@@ -129,33 +129,53 @@ def generate_cot_reasoning(
         from langchain_google_genai import ChatGoogleGenerativeAI
         from utils.config import Config
         
-        llm = ChatGoogleGenerativeAI(**Config.get_llm_config('reasoning'))
+        # llm = ChatGoogleGenerativeAI(**Config.get_llm_config('reasoning'))
+        llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash-lite",
+            temperature=0,
+            max_tokens=None,
+            timeout=None,
+            max_retries=2,
+            api_key=Config.GOOGLE_API_KEY)
     except Exception as e:
         print(f"Cannot initialize LLM for CoT generation: {e}")
         return examples
     
     print("Generating Chain-of-Thought reasoning...")
     
-    cot_prompt = """Given this medical question, provide step-by-step reasoning to arrive at the answer.
+    cot_prompt = """You are generating a concise medical chain-of-thought.
+
+Analyze the question step-by-step, but keep the reasoning short, structured, and focused (5–8 sentences total).
+
+Follow this format strictly:
+
+1. Key clinical findings:
+- ...
+
+2. Differential diagnosis (only the top relevant conditions):
+- ...
+
+3. Key medical reasoning:
+- ...
+
+4. Option analysis:
+- Why the correct answer is correct (1–2 sentences)
+- Why the other options are incorrect (1 sentence each)
+
+Do NOT add extra explanation beyond this structure.
 
 Question: {question}
-
 Options:
 {options}
-
 Correct Answer: {answer}
 
-Provide a detailed reasoning process:
-1. Identify the key clinical findings
-2. Consider the differential diagnosis
-3. Apply medical knowledge
-4. Explain why the correct answer is right and why other options are wrong
-
-Reasoning:"""
+Reasoning:
+"""
     
     for i, example in enumerate(tqdm(examples, desc="Generating CoT")):
         if 'cot_reasoning' in example:
             continue  # Skip if already has reasoning
+        import time
+        time.sleep(4)
         
         try:
             options_text = "\n".join([
@@ -171,6 +191,9 @@ Reasoning:"""
             response = llm.invoke(prompt)
             reasoning = response.content if hasattr(response, 'content') else str(response)
             
+            print(f"Reasoning: {reasoning}")
+            print("="*80)
+            print("="*80)
             example['cot_reasoning'] = reasoning
             
         except Exception as e:
@@ -180,7 +203,7 @@ Reasoning:"""
         # Rate limiting
         if i > 0 and i % batch_size == 0:
             import time
-            time.sleep(1)
+            time.sleep(5)
     
     return examples
 
@@ -219,10 +242,10 @@ def main():
     embedding_service = EmbeddingService(model_name=args.embedding_model)
     
     # Build KNN index
-    print("\nBuilding KNN index...")
+    print("\nBuilding KNN index...")    
     knn_retriever = KNNRetriever(
         embedding_service=embedding_service,
-        index_path=str(output_dir / "train_index.pkl")
+        index_path=str(output_dir / "train_index_with_cot.pkl")
     )
     
     knn_retriever.build_index(
@@ -243,7 +266,7 @@ def main():
     print(f"Total examples indexed: {len(prepared_examples)}")
     print(f"Embedding dimension: {embedding_service.embedding_dim}")
     print(f"Model used: {embedding_service.model_name}")
-    print(f"Index saved to: {output_dir / 'train_index.pkl'}")
+    print(f"Index saved to: {output_dir / 'train_index_with_cot.pkl'}")
     
     # Test retrieval
     print("\n" + "-" * 60)

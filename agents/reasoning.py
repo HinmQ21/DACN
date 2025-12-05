@@ -160,12 +160,32 @@ Please provide detailed Chain-of-Thought reasoning.""")
         # Create chain with CoT prompt
         chain = self.cot_prompt | self.llm | StrOutputParser()
         
-        reasoning_result = chain.invoke({
+        # Prepare input variables
+        input_vars = {
             "question": question,
             "few_shot_examples": few_shot_examples,
             "options_text": options_text,
             "additional_context": additional_context
-        })
+        }
+        
+        ## LOG: Print the full prompt after few-shot injection
+        # print("\n" + "="*80)
+        # print("[REASONING AGENT] FULL PROMPT WITH FEW-SHOT EXAMPLES")
+        # print("="*80)
+        
+        # # Format the prompt to see what will be sent to LLM
+        # formatted_messages = self.cot_prompt.format_messages(**input_vars)
+        # for i, msg in enumerate(formatted_messages):
+        #     print(f"\n--- Message {i+1} ({msg.type.upper()}) ---")
+        #     print(msg.content)  # Limit to first 2000 chars
+        #     # if len(msg.content) > 2000:
+        #     #     print(f"\n... [TRUNCATED - Total length: {len(msg.content)} chars] ...")
+        
+        # print("\n" + "="*80)
+        # print("[END OF PROMPT]")
+        # print("="*80 + "\n")
+        
+        reasoning_result = chain.invoke(input_vars)
         
         return self._parse_cot_output(reasoning_result)
     

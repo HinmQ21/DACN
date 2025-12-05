@@ -1,5 +1,6 @@
 """LangGraph workflow for medical QA system with Medprompt integration."""
 
+import time
 from typing import TypedDict, Annotated, Dict, Any, List, Optional
 from langgraph.graph import StateGraph, END
 from langgraph.graph.message import add_messages
@@ -91,6 +92,7 @@ class MedicalQAWorkflow:
         """
         Node: Coordinator analyzes the question and retrieves few-shot examples.
         """
+        start_time = time.time()
         try:
             print("[DEBUG] Running Coordinator with Few-shot Selection...")
             analysis = self.coordinator.analyze(
@@ -103,9 +105,11 @@ class MedicalQAWorkflow:
             if analysis.get('num_similar_examples', 0) > 0:
                 print(f"[DEBUG] Retrieved {analysis['num_similar_examples']} similar examples")
             
-            print("[DEBUG] Coordinator completed successfully")
+            elapsed = time.time() - start_time
+            print(f"[DEBUG] Coordinator completed in {elapsed:.2f}s")
         except Exception as e:
-            print(f"[DEBUG] Coordinator FAILED: {str(e)}")
+            elapsed = time.time() - start_time
+            print(f"[DEBUG] Coordinator FAILED after {elapsed:.2f}s: {str(e)}")
             state['error'] = f"Coordinator error: {str(e)}"
             state['analysis'] = {}
             state['few_shot_examples'] = ''
@@ -113,6 +117,7 @@ class MedicalQAWorkflow:
     
     def _web_search_node(self, state: AgentState) -> AgentState:
         """Node: Web search."""
+        start_time = time.time()
         try:
             print("[DEBUG] Running Web Search...")
             analysis = state.get('analysis', {})
@@ -125,9 +130,11 @@ class MedicalQAWorkflow:
                     'synthesis': 'Web search skipped based on coordinator analysis',
                     'total_sources': 0
                 }
-            print("[DEBUG] Web Search completed successfully")
+            elapsed = time.time() - start_time
+            print(f"[DEBUG] Web Search completed in {elapsed:.2f}s")
         except Exception as e:
-            print(f"[DEBUG] Web Search FAILED: {str(e)}")
+            elapsed = time.time() - start_time
+            print(f"[DEBUG] Web Search FAILED after {elapsed:.2f}s: {str(e)}")
             state['error'] = f"Web search error: {str(e)}"
             state['web_search_result'] = {'synthesis': 'Error in web search', 'total_sources': 0}
         return state
@@ -136,6 +143,7 @@ class MedicalQAWorkflow:
         """
         Node: Reasoning agent performs logical analysis with CoT.
         """
+        start_time = time.time()
         try:
             print("[DEBUG] Running Reasoning with CoT...")
             analysis = state.get('analysis', {}) or {}
@@ -160,9 +168,11 @@ class MedicalQAWorkflow:
                     'raw_output': 'Reasoning skipped based on coordinator analysis',
                     'conclusion': ''
                 }
-            print("[DEBUG] Reasoning completed successfully")
+            elapsed = time.time() - start_time
+            print(f"[DEBUG] Reasoning completed in {elapsed:.2f}s")
         except Exception as e:
-            print(f"[DEBUG] Reasoning FAILED: {str(e)}")
+            elapsed = time.time() - start_time
+            print(f"[DEBUG] Reasoning FAILED after {elapsed:.2f}s: {str(e)}")
             state['error'] = f"Reasoning error: {str(e)}"
             state['reasoning_result'] = {'raw_output': 'Error in reasoning', 'conclusion': ''}
         return state
@@ -172,6 +182,7 @@ class MedicalQAWorkflow:
         Node: Validator validates results.
         For multiple choice with ensemble enabled, uses choice shuffling.
         """
+        start_time = time.time()
         try:
             print("[DEBUG] Running Validator...")
             
@@ -187,9 +198,11 @@ class MedicalQAWorkflow:
             )
             state['validation_result'] = validation
             
-            print("[DEBUG] Validator completed successfully")
+            elapsed = time.time() - start_time
+            print(f"[DEBUG] Validator completed in {elapsed:.2f}s")
         except Exception as e:
-            print(f"[DEBUG] Validator FAILED: {str(e)}")
+            elapsed = time.time() - start_time
+            print(f"[DEBUG] Validator FAILED after {elapsed:.2f}s: {str(e)}")
             state['error'] = f"Validator error: {str(e)}"
             state['validation_result'] = {
                 'is_consistent': True,
@@ -202,6 +215,7 @@ class MedicalQAWorkflow:
         """
         Node: Choice Shuffling Ensemble (for multiple choice questions).
         """
+        start_time = time.time()
         try:
             options = state.get('options')
             
@@ -230,15 +244,18 @@ class MedicalQAWorkflow:
                 
                 state['ensemble_result'] = ensemble_result
                 
-                print(f"[DEBUG] Ensemble completed: answer={ensemble_result.get('answer')}, "
+                elapsed = time.time() - start_time
+                print(f"[DEBUG] Ensemble completed in {elapsed:.2f}s: answer={ensemble_result.get('answer')}, "
                       f"confidence={ensemble_result.get('confidence', 0):.2f}, "
                       f"consistency={ensemble_result.get('consistency', 0):.2f}")
             else:
                 state['ensemble_result'] = None
-                print("[DEBUG] Ensemble skipped (not MC or disabled)")
+                elapsed = time.time() - start_time
+                print(f"[DEBUG] Ensemble skipped in {elapsed:.2f}s (not MC or disabled)")
                 
         except Exception as e:
-            print(f"[DEBUG] Ensemble FAILED: {str(e)}")
+            elapsed = time.time() - start_time
+            print(f"[DEBUG] Ensemble FAILED after {elapsed:.2f}s: {str(e)}")
             state['ensemble_result'] = None
             # Don't set error - ensemble is optional
         
@@ -249,6 +266,7 @@ class MedicalQAWorkflow:
         Node: Answer generator produces final answer.
         Uses ensemble result if available.
         """
+        start_time = time.time()
         try:
             print("[DEBUG] Running Answer Generator...")
             
@@ -293,10 +311,12 @@ class MedicalQAWorkflow:
                 answer['ensemble_used'] = False
             
             state['final_answer'] = answer
-            print(f"[DEBUG] Answer Generator completed: {answer.get('answer', 'N/A')}")
+            elapsed = time.time() - start_time
+            print(f"[DEBUG] Answer Generator completed in {elapsed:.2f}s: {answer.get('answer', 'N/A')}")
             
         except Exception as e:
-            print(f"[DEBUG] Answer Generator FAILED: {str(e)}")
+            elapsed = time.time() - start_time
+            print(f"[DEBUG] Answer Generator FAILED after {elapsed:.2f}s: {str(e)}")
             state['error'] = f"Answer generator error: {str(e)}"
             state['final_answer'] = {'answer': '', 'explanation': 'Error generating answer'}
         
@@ -304,6 +324,9 @@ class MedicalQAWorkflow:
     
     def _parallel_search_and_reason(self, state: AgentState) -> AgentState:
         """Node: Run parallel web search and reasoning."""
+        start_time = time.time()
+        print("[DEBUG] Running Parallel Search + Reasoning...")
+        
         with ThreadPoolExecutor(max_workers=2) as executor:
             # Submit both tasks
             web_future = executor.submit(self._web_search_node, state.copy())
@@ -325,6 +348,9 @@ class MedicalQAWorkflow:
                 errors.append(reason_state['error'])
             if errors:
                 state['error'] = '; '.join(errors)
+        
+        elapsed = time.time() - start_time
+        print(f"[DEBUG] Parallel Search + Reasoning completed in {elapsed:.2f}s")
         
         return state
     
@@ -369,6 +395,9 @@ class MedicalQAWorkflow:
         Returns:
             Dictionary containing final results
         """
+        # Start timing
+        workflow_start_time = time.time()
+        
         initial_state = {
             "question": question,
             "options": options,
@@ -387,6 +416,15 @@ class MedicalQAWorkflow:
         # Run graph
         final_state = self.graph.invoke(initial_state)
         
+        # Calculate total time
+        workflow_end_time = time.time()
+        total_time = workflow_end_time - workflow_start_time
+        
+        # Log timing
+        print(f"\n{'='*60}")
+        print(f"[WORKFLOW] Total execution time: {total_time:.2f} seconds")
+        print(f"{'='*60}\n")
+        
         # Build result
         result = {
             "question": question,
@@ -398,6 +436,7 @@ class MedicalQAWorkflow:
             "coordinator_analysis": final_state.get('analysis', {}),
             "validation": final_state.get('validation_result', {}),
             "error": final_state.get('error'),
+            "execution_time": total_time,  # Add execution time to result
             
             # Medprompt-specific outputs
             "medprompt": {

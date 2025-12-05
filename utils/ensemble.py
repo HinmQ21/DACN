@@ -72,7 +72,16 @@ class ChoiceShuffler:
         Returns:
             List of variant dictionaries with shuffled options and mappings
         """
+        import math
+        
         variants = []
+        
+        # Calculate maximum possible unique permutations
+        num_options = len(options)
+        max_permutations = math.factorial(num_options)
+        
+        # Limit k to max possible permutations
+        k = min(k, max_permutations)
         
         # First variant is always the original
         variants.append({
@@ -83,9 +92,13 @@ class ChoiceShuffler:
             'variant_id': 0
         })
         
-        # Create k-1 shuffled variants
-        for i in range(1, k):
-            seed = (base_seed + i) if base_seed is not None else None
+        # Create k-1 shuffled variants with retry logic
+        max_attempts = k * 10  # Try up to 10x to find unique variants
+        attempt = 0
+        variant_id = 1
+        
+        while len(variants) < k and attempt < max_attempts:
+            seed = (base_seed + attempt) if base_seed is not None else None
             shuffled_options, reverse_mapping = ChoiceShuffler.shuffle_options(
                 options, seed=seed
             )
@@ -101,8 +114,11 @@ class ChoiceShuffler:
                     'options': shuffled_options,
                     'reverse_mapping': reverse_mapping,
                     'is_original': False,
-                    'variant_id': i
+                    'variant_id': variant_id
                 })
+                variant_id += 1
+            
+            attempt += 1
         
         return variants
     
