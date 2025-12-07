@@ -9,7 +9,8 @@ from agents import (
     WebSearchAgent,
     ReasoningAgent,
     ValidatorAgent,
-    AnswerGeneratorAgent
+    AnswerGeneratorAgent,
+    ReflexionAgent
 )
 from utils.config import Config
 import asyncio
@@ -37,9 +38,14 @@ class AgentState(TypedDict):
     # Final output
     final_answer: Dict[str, Any] | None
     
+    # Reflexion outputs
+    reflexion_result: Dict[str, Any] | None
+    reflexion_iterations: int
+    
     # Metadata
     error: str | None
     medprompt_enabled: bool
+    reflexion_enabled: bool
 
 
 class MedicalQAWorkflow:
@@ -57,7 +63,8 @@ class MedicalQAWorkflow:
         enable_few_shot: bool = None,
         enable_cot: bool = None,
         enable_ensemble: bool = None,
-        enable_self_consistency: bool = None
+        enable_self_consistency: bool = None,
+        enable_reflexion: bool = None
     ):
         """
         Initialize the workflow.
@@ -67,6 +74,7 @@ class MedicalQAWorkflow:
             enable_cot: Enable Chain-of-Thought reasoning
             enable_ensemble: Enable choice shuffling ensemble
             enable_self_consistency: Enable self-consistency (multiple sampling)
+            enable_reflexion: Enable self-correction (Reflexion)
         """
         # Load Medprompt config
         medprompt_config = Config.get_medprompt_config()
@@ -77,12 +85,17 @@ class MedicalQAWorkflow:
         self.enable_self_consistency = enable_self_consistency if enable_self_consistency is not None else medprompt_config['enable_self_consistency']
         self.self_consistency_samples = medprompt_config.get('self_consistency_samples', 3)
         
+        # Load Reflexion config
+        reflexion_config = Config.get_reflexion_config()
+        self.enable_reflexion = enable_reflexion if enable_reflexion is not None else reflexion_config['enable_reflexion']
+        
         # Initialize agents with Medprompt features
         self.coordinator = CoordinatorAgent(enable_few_shot=self.enable_few_shot)
         self.web_search = WebSearchAgent()
         self.reasoning = ReasoningAgent(enable_cot=self.enable_cot)
         self.validator = ValidatorAgent(enable_ensemble=self.enable_ensemble)
         self.answer_generator = AnswerGeneratorAgent()
+        self.reflexion = ReflexionAgent(enable_reflexion=self.enable_reflexion)
         
         # Build graph
         self.graph = self._build_graph()
@@ -92,6 +105,7 @@ class MedicalQAWorkflow:
         print(f"  - Chain-of-Thought: {self.enable_cot}")
         print(f"  - Choice Shuffling Ensemble: {self.enable_ensemble}")
         print(f"  - Self-Consistency: {self.enable_self_consistency} (samples={self.self_consistency_samples})")
+        print(f"  - Reflexion (Self-Correction): {self.enable_reflexion}")
     
     def _coordinator_node(self, state: AgentState) -> AgentState:
         """
@@ -346,6 +360,73 @@ class MedicalQAWorkflow:
         
         return state
     
+    def _reflexion_node(self, state: AgentState) -> AgentState:
+        """
+        Node: Reflexion agent performs self-correction if needed.
+        
+        Critiques the answer, identifies issues, and generates improved answer
+        when confidence is below threshold or issues are detected.
+        """
+        start_time = time.time()
+        
+        if not self.enable_reflexion:
+            state['reflexion_result'] = None
+            state['reflexion_iterations'] = 0
+            print("[DEBUG] Reflexion skipped (disabled)")
+            return state
+        
+        try:
+            print("[DEBUG] Running Reflexion (Self-Correction)...")
+            
+            # Get required state components
+            final_answer = state.get('final_answer') or {}
+            reasoning_result = state.get('reasoning_result') or {}
+            validation_result = state.get('validation_result') or {}
+            web_search_result = state.get('web_search_result') or {}
+            options = state.get('options') or {}
+            
+            # Perform reflexion
+            reflexion_result = self.reflexion.reflect_and_correct(
+                question=state['question'],
+                options=options,
+                answer_result=final_answer,
+                reasoning_result=reasoning_result,
+                validation_result=validation_result,
+                web_search_result=web_search_result,
+                iteration=0
+            )
+            
+            state['reflexion_result'] = reflexion_result
+            state['reflexion_iterations'] = reflexion_result.get('iterations', 0)
+            
+            # Update final answer if reflexion produced a better one
+            if reflexion_result.get('performed', False):
+                corrected_answer = reflexion_result.get('final_answer', {})
+                if corrected_answer and corrected_answer.get('answer'):
+                    # Check if answer changed
+                    original_answer = final_answer.get('answer', '')
+                    new_answer = corrected_answer.get('answer', '')
+                    
+                    if new_answer and new_answer != original_answer:
+                        print(f"[DEBUG] Reflexion corrected answer: {original_answer} → {new_answer}")
+                        state['final_answer'] = corrected_answer
+                    else:
+                        print(f"[DEBUG] Reflexion kept original answer: {original_answer}")
+            
+            elapsed = time.time() - start_time
+            iterations = reflexion_result.get('iterations', 0)
+            performed = reflexion_result.get('performed', False)
+            print(f"[DEBUG] Reflexion completed in {elapsed:.2f}s: performed={performed}, iterations={iterations}")
+            
+        except Exception as e:
+            elapsed = time.time() - start_time
+            print(f"[DEBUG] Reflexion FAILED after {elapsed:.2f}s: {str(e)}")
+            state['reflexion_result'] = {'error': str(e), 'performed': False}
+            state['reflexion_iterations'] = 0
+            # Don't set error - reflexion failure shouldn't block answer
+        
+        return state
+    
     def _parallel_search_and_reason(self, state: AgentState) -> AgentState:
         """Node: Run parallel web search and reasoning."""
         start_time = time.time()
@@ -379,7 +460,7 @@ class MedicalQAWorkflow:
         return state
     
     def _build_graph(self) -> StateGraph:
-        """Build workflow graph with Medprompt integration."""
+        """Build workflow graph with Medprompt integration and Reflexion."""
         workflow = StateGraph(AgentState)
         
         # Add nodes
@@ -388,17 +469,19 @@ class MedicalQAWorkflow:
         workflow.add_node("validator", self._validator_node)
         workflow.add_node("ensemble", self._ensemble_node)
         workflow.add_node("answer_generator", self._answer_generator_node)
+        workflow.add_node("reflexion", self._reflexion_node)
         
         # Define edges
         # Coordinator -> Parallel (Web Search + Reasoning)
         workflow.set_entry_point("coordinator")
         workflow.add_edge("coordinator", "parallel_search")
         
-        # Parallel -> Validator -> Ensemble -> Answer Generator
+        # Parallel -> Validator -> Ensemble -> Answer Generator -> Reflexion
         workflow.add_edge("parallel_search", "validator")
         workflow.add_edge("validator", "ensemble")
         workflow.add_edge("ensemble", "answer_generator")
-        workflow.add_edge("answer_generator", END)
+        workflow.add_edge("answer_generator", "reflexion")
+        workflow.add_edge("reflexion", END)
         
         return workflow.compile()
     
@@ -433,8 +516,11 @@ class MedicalQAWorkflow:
             "validation_result": None,
             "ensemble_result": None,
             "final_answer": None,
+            "reflexion_result": None,
+            "reflexion_iterations": 0,
             "error": None,
-            "medprompt_enabled": self.enable_few_shot or self.enable_cot or self.enable_ensemble
+            "medprompt_enabled": self.enable_few_shot or self.enable_cot or self.enable_ensemble,
+            "reflexion_enabled": self.enable_reflexion
         }
         
         # Run graph
@@ -450,6 +536,8 @@ class MedicalQAWorkflow:
         print(f"{'='*60}\n")
         
         # Build result
+        reflexion_result = final_state.get('reflexion_result') or {}
+        
         result = {
             "question": question,
             "answer": final_state.get('final_answer', {}).get('answer', ''),
@@ -471,6 +559,18 @@ class MedicalQAWorkflow:
                 "ensemble_consistency": final_state.get('final_answer', {}).get('ensemble_consistency', None),
                 "all_predictions": final_state.get('final_answer', {}).get('all_predictions', []),
                 "vote_distribution": final_state.get('final_answer', {}).get('vote_distribution', {})
+            },
+            
+            # Reflexion-specific outputs
+            "reflexion": {
+                "enabled": final_state.get('reflexion_enabled', False),
+                "performed": reflexion_result.get('performed', False),
+                "iterations": final_state.get('reflexion_iterations', 0),
+                "original_answer": reflexion_result.get('original_answer'),
+                "original_confidence": reflexion_result.get('original_confidence'),
+                "correction_applied": final_state.get('final_answer', {}).get('reflexion_applied', False),
+                "reason": reflexion_result.get('reason', ''),
+                "critique": reflexion_result.get('critique', {}).get('overall_assessment') if reflexion_result.get('critique') else None
             }
         }
         
@@ -501,7 +601,8 @@ def create_workflow(
     enable_few_shot: bool = None,
     enable_cot: bool = None,
     enable_ensemble: bool = None,
-    enable_self_consistency: bool = None
+    enable_self_consistency: bool = None,
+    enable_reflexion: bool = None
 ) -> MedicalQAWorkflow:
     """
     Create a MedicalQAWorkflow instance.
@@ -512,6 +613,7 @@ def create_workflow(
         enable_cot: Enable Chain-of-Thought
         enable_ensemble: Enable choice shuffling ensemble
         enable_self_consistency: Enable self-consistency (multiple sampling)
+        enable_reflexion: Enable self-correction (Reflexion)
         
     Returns:
         Configured MedicalQAWorkflow instance
@@ -521,12 +623,14 @@ def create_workflow(
             enable_few_shot=False,
             enable_cot=False,
             enable_ensemble=False,
-            enable_self_consistency=False
+            enable_self_consistency=False,
+            enable_reflexion=enable_reflexion  # Reflexion can still be enabled independently
         )
     
     return MedicalQAWorkflow(
         enable_few_shot=enable_few_shot,
         enable_cot=enable_cot,
         enable_ensemble=enable_ensemble,
-        enable_self_consistency=enable_self_consistency
+        enable_self_consistency=enable_self_consistency,
+        enable_reflexion=enable_reflexion
     )

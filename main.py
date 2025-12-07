@@ -1,7 +1,7 @@
 """Main script to run medical QA system on single questions."""
 
 import argparse
-from workflows import MedicalQAWorkflow
+from workflows import MedicalQAWorkflow, create_workflow
 from utils.config import Config
 import json
 import time
@@ -34,7 +34,27 @@ def main():
         help='Show detailed output'
     )
     
+    # Reflexion arguments
+    parser.add_argument(
+        '--reflexion',
+        action='store_true',
+        default=None,
+        help='Enable self-correction (Reflexion)'
+    )
+    parser.add_argument(
+        '--no-reflexion',
+        action='store_true',
+        help='Disable self-correction (Reflexion)'
+    )
+    
     args = parser.parse_args()
+    
+    # Determine reflexion setting
+    enable_reflexion = None  # Use config default
+    if args.reflexion:
+        enable_reflexion = True
+    elif args.no_reflexion:
+        enable_reflexion = False
     
     # Validate config
     try:
@@ -46,7 +66,7 @@ def main():
     
     # Initialize workflow
     print("Initializing Medical QA Workflow...")
-    workflow = MedicalQAWorkflow()
+    workflow = create_workflow(enable_reflexion=enable_reflexion)
     
     # Run question
     print(f"\nQuestion: {args.question}")
@@ -91,6 +111,35 @@ def main():
     print(f"Sources used: {result['sources_count']}")
     print(f"Time taken: {elapsed_time:.2f} seconds")
     
+    # Display Reflexion info
+    reflexion_info = result.get('reflexion', {})
+    if reflexion_info.get('enabled'):
+        print("\n" + "-"*60)
+        print("REFLEXION (Self-Correction)")
+        print("-"*60)
+        print(f"Performed: {reflexion_info.get('performed', False)}")
+        if reflexion_info.get('performed'):
+            print(f"Iterations: {reflexion_info.get('iterations', 0)}")
+            if reflexion_info.get('correction_applied'):
+                print(f"Original answer: {reflexion_info.get('original_answer')}")
+                print(f"Original confidence: {reflexion_info.get('original_confidence', 0):.2f}")
+                print(f"Correction applied: Yes")
+            else:
+                print(f"Correction applied: No (answer kept)")
+            print(f"Reason: {reflexion_info.get('reason', 'N/A')}")
+    
+    # Display Medprompt info
+    medprompt_info = result.get('medprompt', {})
+    if medprompt_info.get('enabled'):
+        print("\n" + "-"*60)
+        print("MEDPROMPT INFO")
+        print("-"*60)
+        print(f"Few-shot examples: {medprompt_info.get('few_shot_count', 0)}")
+        print(f"CoT used: {medprompt_info.get('cot_used', False)}")
+        print(f"Ensemble used: {medprompt_info.get('ensemble_used', False)}")
+        if medprompt_info.get('ensemble_used'):
+            print(f"Ensemble consistency: {medprompt_info.get('ensemble_consistency', 0):.2f}")
+    
     if args.verbose:
         print("\n" + "-"*60)
         print("DETAILED ANALYSIS")
@@ -99,6 +148,11 @@ def main():
         print(json.dumps(result['coordinator_analysis'], indent=2, ensure_ascii=False))
         print(f"\nValidation Results:")
         print(json.dumps(result['validation'], indent=2, ensure_ascii=False))
+        
+        # Show full reflexion details in verbose mode
+        if reflexion_info.get('performed') and reflexion_info.get('critique'):
+            print(f"\nReflexion Critique:")
+            print(reflexion_info.get('critique'))
     
     if result.get('error'):
         print(f"\nWarning: {result['error']}")

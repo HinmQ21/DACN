@@ -70,6 +70,13 @@ class Config:
     ENABLE_SELF_CONSISTENCY: bool = os.getenv("ENABLE_SELF_CONSISTENCY", "false").lower() == "true"
     SELF_CONSISTENCY_SAMPLES: int = int(os.getenv("SELF_CONSISTENCY_SAMPLES", "3"))
     
+    # Self-Correction (Reflexion) Configuration
+    ENABLE_REFLEXION: bool = os.getenv("ENABLE_REFLEXION", "true").lower() == "true"
+    REFLEXION_MAX_ITERATIONS: int = int(os.getenv("REFLEXION_MAX_ITERATIONS", "2"))
+    REFLEXION_CONFIDENCE_THRESHOLD: float = float(os.getenv("REFLEXION_CONFIDENCE_THRESHOLD", "0.7"))
+    REFLEXION_MODEL: str = os.getenv("REFLEXION_MODEL", "")  # Optional model override
+    REFLEXION_TEMPERATURE: float = float(os.getenv("REFLEXION_TEMPERATURE", "0"))
+    
     @classmethod
     def validate(cls) -> bool:
         """Validate required configuration."""
@@ -114,6 +121,9 @@ class Config:
             elif agent_name_lower == 'web_search' and cls.WEB_SEARCH_MODEL:
                 model = cls.WEB_SEARCH_MODEL
                 temperature = cls.WEB_SEARCH_TEMPERATURE or cls.TEMPERATURE
+            elif agent_name_lower == 'reflexion' and cls.REFLEXION_MODEL:
+                model = cls.REFLEXION_MODEL
+                temperature = cls.REFLEXION_TEMPERATURE or cls.TEMPERATURE
         
         return {
             "model": model,
@@ -152,6 +162,25 @@ class Config:
             # Self-consistency
             "enable_self_consistency": cls.ENABLE_SELF_CONSISTENCY,
             "self_consistency_samples": cls.SELF_CONSISTENCY_SAMPLES,
+            
+            # Reflexion
+            "enable_reflexion": cls.ENABLE_REFLEXION,
+            "reflexion_max_iterations": cls.REFLEXION_MAX_ITERATIONS,
+            "reflexion_confidence_threshold": cls.REFLEXION_CONFIDENCE_THRESHOLD,
+        }
+    
+    @classmethod
+    def get_reflexion_config(cls) -> dict:
+        """
+        Get Reflexion-specific configuration.
+        
+        Returns:
+            Dictionary with Reflexion settings
+        """
+        return {
+            "enable_reflexion": cls.ENABLE_REFLEXION,
+            "max_iterations": cls.REFLEXION_MAX_ITERATIONS,
+            "confidence_threshold": cls.REFLEXION_CONFIDENCE_THRESHOLD,
         }
     
     @classmethod
@@ -173,4 +202,7 @@ class Config:
         print(f"  Ensemble Variants: {cls.ENSEMBLE_VARIANTS}")
         print(f"  Self-Consistency Enabled: {cls.ENABLE_SELF_CONSISTENCY}")
         print(f"  Self-Consistency Samples: {cls.SELF_CONSISTENCY_SAMPLES}")
+        print(f"  Reflexion Enabled: {cls.ENABLE_REFLEXION}")
+        print(f"  Reflexion Max Iterations: {cls.REFLEXION_MAX_ITERATIONS}")
+        print(f"  Reflexion Confidence Threshold: {cls.REFLEXION_CONFIDENCE_THRESHOLD}")
         print("=" * 60)

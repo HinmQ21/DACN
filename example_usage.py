@@ -54,6 +54,21 @@ def example_multiple_choice():
         print(f"All predictions: {medprompt_info.get('all_predictions', [])}")
         print(f"Vote distribution: {medprompt_info.get('vote_distribution', {})}")
     
+    # Show Reflexion info
+    reflexion_info = result.get('reflexion', {})
+    print(f"\n--- Reflexion (Self-Correction) Info ---")
+    print(f"Reflexion enabled: {reflexion_info.get('enabled', False)}")
+    print(f"Reflexion performed: {reflexion_info.get('performed', False)}")
+    if reflexion_info.get('performed'):
+        print(f"Iterations: {reflexion_info.get('iterations', 0)}")
+        if reflexion_info.get('correction_applied'):
+            print(f"Original answer: {reflexion_info.get('original_answer')}")
+            print(f"Original confidence: {reflexion_info.get('original_confidence', 0):.2f}")
+            print(f"Correction applied: Yes")
+        print(f"Reason: {reflexion_info.get('reason', '')}")
+        if reflexion_info.get('critique'):
+            print(f"Critique: {reflexion_info.get('critique')}")
+    
     # Debug: Show actual error if any
     if result.get('error'):
         print(f"\n[DEBUG] Error: {result['error']}")
@@ -121,6 +136,13 @@ def example_clinical_reasoning():
         print(f"\n--- Ensemble Results ---")
         print(f"Consistency: {medprompt_info.get('ensemble_consistency', 0):.2f}")
         print(f"Predictions: {medprompt_info.get('all_predictions', [])}")
+    
+    # Show Reflexion info
+    reflexion_info = result.get('reflexion', {})
+    if reflexion_info.get('performed'):
+        print(f"\n--- Reflexion Results ---")
+        print(f"Iterations: {reflexion_info.get('iterations', 0)}")
+        print(f"Correction applied: {reflexion_info.get('correction_applied', False)}")
 
 
 def example_without_medprompt():
