@@ -285,6 +285,15 @@ Please provide the final answer in the specified JSON format.""",
                 )
                 last_result = result
                 
+                ## Log answer generator result
+                print(f"[AnswerGenerator] Result: {result}")
+                print(f"[AnswerGenerator] Answer: {result['answer']}")
+                print(f"[AnswerGenerator] Explanation: {result['explanation']}")
+                print(f"[AnswerGenerator] Confidence: {result['confidence']}")
+                print(f"[AnswerGenerator] Sources Count: {result['sources_count']}")
+                print(f"[AnswerGenerator] Parsed Successfully: {result['parsed_successfully']}")
+                print(f"[AnswerGenerator] Full Response: {result['full_response']}")
+                
                 # If we got an answer, return immediately
                 if result['answer']:
                     if attempt > 0:

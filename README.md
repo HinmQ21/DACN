@@ -21,6 +21,11 @@ Hệ thống multi-agent sử dụng Gemini, LangChain và LangGraph để trả
 - Chạy nhiều variants với options được shuffle
 - Majority voting để chọn đáp án cuối cùng
 
+### 4. Self-Consistency (Multiple Sampling)
+- Chạy reasoning nhiều lần với temperature cao
+- Aggregation qua voting để tăng độ tin cậy
+- Phù hợp cho high-stakes questions
+
 ## Workflow
 
 ```
@@ -33,7 +38,8 @@ Hệ thống multi-agent sử dụng Gemini, LangChain và LangGraph để trả
  ┌───────────────┴───────────────┐
  ↓                               ↓
 Web Search              [Reasoning Agent]
-                            └── 📌 Self-Generated CoT
+                            ├── 📌 Self-Generated CoT
+                            └── 📌 Self-Consistency (optional)
  ↓                               ↓
  └───────────────┬───────────────┘
                  ↓
@@ -99,6 +105,8 @@ TEMPERATURE=0.3
 ENABLE_FEW_SHOT=true
 ENABLE_COT=true
 ENABLE_ENSEMBLE=true
+ENABLE_SELF_CONSISTENCY=false
+SELF_CONSISTENCY_SAMPLES=3
 ```
 
 2. Lấy API Keys:
@@ -135,9 +143,12 @@ python run_benchmark.py --dataset medqa --max-samples 100 --no-medprompt
 ### Tùy chọn Medprompt:
 ```bash
 # Disable từng feature
-python run_benchmark.py --no-few-shot    # Không dùng few-shot
-python run_benchmark.py --no-cot         # Không dùng CoT
-python run_benchmark.py --no-ensemble    # Không dùng ensemble
+python run_benchmark.py --no-few-shot           # Không dùng few-shot
+python run_benchmark.py --no-cot                # Không dùng CoT
+python run_benchmark.py --no-ensemble           # Không dùng ensemble
+
+# Bật Self-Consistency (cho high-stakes questions)
+python run_benchmark.py --self-consistency --sc-samples 5
 
 # Tùy chỉnh parameters
 python run_benchmark.py --few-shot-k 5 --ensemble-variants 7
@@ -158,14 +169,16 @@ Xem chi tiết tại:
 | `ENABLE_COT` | true | Bật Chain-of-Thought |
 | `ENABLE_ENSEMBLE` | true | Bật choice shuffling |
 | `ENSEMBLE_VARIANTS` | 5 | Số variants |
+| `ENABLE_SELF_CONSISTENCY` | false | Bật self-consistency (multiple sampling) |
+| `SELF_CONSISTENCY_SAMPLES` | 3 | Số lần sampling |
 
 ## Các Agent
 
 1. **Coordinator**: Phân tích câu hỏi + **Dynamic Few-shot Selection**
 2. **Web Search Agent**: Tìm kiếm từ Tavily và PubMed
-3. **Reasoning Agent**: Suy luận logic + **Self-Generated CoT**
+3. **Reasoning Agent**: Suy luận logic + **Self-Generated CoT** + **Self-Consistency**
 4. **Validator**: Kiểm tra tính nhất quán + **Choice Shuffling Ensemble**
-5. **Answer Generator**: Tổng hợp câu trả lời cuối cùng
+5. **Answer Generator**: Tổng hợp câu trả lời cuối cùng (Structured Output với Pydantic)
 
 ## Metrics
 
@@ -192,6 +205,7 @@ Sources: 8
 --- Medprompt Info ---
 Few-shot examples used: 3
 CoT reasoning: True
+Self-consistency: True (samples=3)
 Ensemble used: True
 Ensemble consistency: 0.80
 Predictions: ['B', 'B', 'B', 'B', 'A']
@@ -208,6 +222,8 @@ Vote distribution: {'B': 0.8, 'A': 0.2}
 ## Roadmap
 
 - [x] ~~Triển khai Medprompt (Few-shot, CoT, Ensemble)~~
+- [x] ~~Self-Consistency (Multiple Sampling)~~
+- [x] ~~Structured Output với Pydantic Parser~~
 - [ ] Thêm support cho hình ảnh y tế (X-ray, CT, MRI)
 - [ ] Tích hợp thêm datasets (MedMCQA, MMLU-Medical)
 - [ ] Web UI với Streamlit/Gradio

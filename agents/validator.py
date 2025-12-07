@@ -364,27 +364,55 @@ Please evaluate and validate.""")
         # Try conclusion first
         conclusion = result.get('conclusion', '')
         
-        # Look for answer pattern
+        # Look for answer pattern (from most specific to general)
         patterns = [
-            r'\b([A-E])\b(?:\s*[-:)]|\s+is\s+correct|\s+is\s+the\s+answer)',
-            r'(?:answer|correct|option)(?:\s+is)?[:\s]+([A-E])\b',
-            r'^([A-E])\b',
-            r'\b([A-E])\b'
+            # JSON format: "answer": "B"
+            r'"answer"\s*:\s*"([A-Ea-e])"',
+            # Answer: B or ANSWER: B
+            r'(?:^|\n)\s*[Aa]nswer\s*:\s*([A-Ea-e])(?:\s|\.|\n|$)',
+            # The answer is B / The correct answer is B
+            r'(?:the\s+)?(?:correct\s+)?answer\s+is\s+([A-Ea-e])(?:\s|\.|\n|$)',
+            # Final answer: B
+            r'[Ff]inal\s+[Aa]nswer\s*:\s*([A-Ea-e])(?:\s|\.|\n|$)',
+            # Option B is correct
+            r'[Oo]ption\s+([A-Ea-e])\s+is\s+(?:the\s+)?correct',
+            # Conclusion: B
+            r'[Cc]onclusion\s*:\s*([A-Ea-e])(?:\s|\.|\n|$)',
+            # **B** or *B* (markdown)
+            r'\*+([A-Ea-e])\*+',
+            # (B) or B.
+            r'\(([A-Ea-e])\)|(?:^|\s)([A-Ea-e])\.(?:\s|$)',
+            # Standalone letter at start
+            r'^([A-Ea-e])(?:\s|$)',
+            # Any letter A-E surrounded by word boundaries
+            r'\b([A-Ea-e])\b(?:\s*[-:)]|\s+is)',
         ]
         
+        # Try patterns on conclusion
         for pattern in patterns:
-            match = re.search(pattern, conclusion, re.IGNORECASE)
+            match = re.search(pattern, conclusion, re.IGNORECASE | re.MULTILINE)
             if match:
-                return match.group(1).upper()
+                # Get the first non-None group
+                answer = next((g for g in match.groups() if g), None)
+                if answer:
+                    return answer.upper()
         
         # Try raw output
         raw_output = result.get('raw_output', '')
         for pattern in patterns:
-            match = re.search(pattern, raw_output, re.IGNORECASE)
+            match = re.search(pattern, raw_output, re.IGNORECASE | re.MULTILINE)
             if match:
-                return match.group(1).upper()
+                answer = next((g for g in match.groups() if g), None)
+                if answer:
+                    return answer.upper()
         
-        return conclusion[:1].upper() if conclusion else ''
+        # Last resort: find any single letter A-E
+        all_text = conclusion + ' ' + raw_output
+        letter_match = re.search(r'\b([A-Ea-e])\b', all_text)
+        if letter_match:
+            return letter_match.group(1).upper()
+        
+        return ''
     
     def calculate_ensemble_metrics(
         self, 

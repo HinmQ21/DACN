@@ -89,20 +89,15 @@ class MedQAEvaluator:
                     question_text = item['question']
                     options = item.get('options', {})
                     
-                    # Format options
-                    options_list = []
-                    for key in sorted(options.keys()):
-                        options_list.append(f"{key}. {options[key]}")
-                    
                     # Get answer key
                     answer_key = item.get('answer_idx', item.get('answer', ''))
                     ground_truths.append(answer_key.upper())
                     
-                    # Run workflow
+                    # Run workflow - pass options as dict (required for Medprompt ensemble)
                     start_time = time.time()
                     result = self.workflow.run(
                         question=question_text,
-                        options=options_list,
+                        options=options,  # Pass dict directly, not list
                         question_type="multiple_choice"
                     )
                     elapsed_time = time.time() - start_time

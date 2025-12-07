@@ -4,6 +4,7 @@ import argparse
 from workflows import MedicalQAWorkflow
 from utils.config import Config
 import json
+import time
 
 
 def main():
@@ -49,20 +50,32 @@ def main():
     
     # Run question
     print(f"\nQuestion: {args.question}")
+    
+    # Convert options list to dict format (required for Medprompt)
+    options_dict = None
     if args.options:
+        options_dict = {}
         print("Options:")
         for opt in args.options:
+            # Parse "A. Option text" format
+            if '. ' in opt:
+                key, value = opt.split('. ', 1)
+                options_dict[key.strip()] = value.strip()
+            elif '.' in opt:
+                key, value = opt.split('.', 1)
+                options_dict[key.strip()] = value.strip()
+            else:
+                # Fallback: use first character as key
+                options_dict[opt[0]] = opt
             print(f"  {opt}")
     
     print("\nProcessing... (this may take a minute)")
     
-    import time
-    # Time start
     start_time = time.time()
     
     result = workflow.run(
         question=args.question,
-        options=args.options,
+        options=options_dict,
         question_type=args.type
     )
     

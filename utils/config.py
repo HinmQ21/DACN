@@ -171,4 +171,6 @@ class Config:
         print(f"  CoT Enabled: {cls.ENABLE_COT}")
         print(f"  Ensemble Enabled: {cls.ENABLE_ENSEMBLE}")
         print(f"  Ensemble Variants: {cls.ENSEMBLE_VARIANTS}")
+        print(f"  Self-Consistency Enabled: {cls.ENABLE_SELF_CONSISTENCY}")
+        print(f"  Self-Consistency Samples: {cls.SELF_CONSISTENCY_SAMPLES}")
         print("=" * 60)

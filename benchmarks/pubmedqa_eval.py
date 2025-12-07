@@ -93,11 +93,11 @@ class PubMedQAEvaluator:
                 ground_truth = item.get('final_decision', '').lower()
                 ground_truths.append(ground_truth)
                 
-                # Run workflow
+                # Run workflow - pass options as dict for consistency
                 start_time = time.time()
                 result = self.workflow.run(
                     question=question_with_context,
-                    options=['yes', 'no', 'maybe'],
+                    options={'yes': 'Yes', 'no': 'No', 'maybe': 'Maybe'},
                     question_type="yes_no"
                 )
                 elapsed_time = time.time() - start_time

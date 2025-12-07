@@ -56,7 +56,8 @@ class MedicalQAWorkflow:
         self,
         enable_few_shot: bool = None,
         enable_cot: bool = None,
-        enable_ensemble: bool = None
+        enable_ensemble: bool = None,
+        enable_self_consistency: bool = None
     ):
         """
         Initialize the workflow.
@@ -65,6 +66,7 @@ class MedicalQAWorkflow:
             enable_few_shot: Enable dynamic few-shot selection
             enable_cot: Enable Chain-of-Thought reasoning
             enable_ensemble: Enable choice shuffling ensemble
+            enable_self_consistency: Enable self-consistency (multiple sampling)
         """
         # Load Medprompt config
         medprompt_config = Config.get_medprompt_config()
@@ -72,6 +74,8 @@ class MedicalQAWorkflow:
         self.enable_few_shot = enable_few_shot if enable_few_shot is not None else medprompt_config['enable_few_shot']
         self.enable_cot = enable_cot if enable_cot is not None else medprompt_config['enable_cot']
         self.enable_ensemble = enable_ensemble if enable_ensemble is not None else medprompt_config['enable_ensemble']
+        self.enable_self_consistency = enable_self_consistency if enable_self_consistency is not None else medprompt_config['enable_self_consistency']
+        self.self_consistency_samples = medprompt_config.get('self_consistency_samples', 3)
         
         # Initialize agents with Medprompt features
         self.coordinator = CoordinatorAgent(enable_few_shot=self.enable_few_shot)
@@ -87,6 +91,7 @@ class MedicalQAWorkflow:
         print(f"  - Few-shot Selection: {self.enable_few_shot}")
         print(f"  - Chain-of-Thought: {self.enable_cot}")
         print(f"  - Choice Shuffling Ensemble: {self.enable_ensemble}")
+        print(f"  - Self-Consistency: {self.enable_self_consistency} (samples={self.self_consistency_samples})")
     
     def _coordinator_node(self, state: AgentState) -> AgentState:
         """
@@ -142,10 +147,12 @@ class MedicalQAWorkflow:
     def _reasoning_node(self, state: AgentState) -> AgentState:
         """
         Node: Reasoning agent performs logical analysis with CoT.
+        Supports self-consistency (multiple sampling) when enabled.
         """
         start_time = time.time()
         try:
-            print("[DEBUG] Running Reasoning with CoT...")
+            reasoning_mode = "Self-Consistency" if self.enable_self_consistency else "CoT"
+            print(f"[DEBUG] Running Reasoning with {reasoning_mode}...")
             analysis = state.get('analysis', {}) or {}
             
             if analysis.get('needs_reasoning', True):
@@ -153,15 +160,28 @@ class MedicalQAWorkflow:
                 few_shot_examples = state.get('few_shot_examples', '') or ''
                 web_search_result = state.get('web_search_result') or {}
                 web_context = web_search_result.get('synthesis', '') if isinstance(web_search_result, dict) else ''
+                options = state.get('options')
                 
-                result = self.reasoning.reason(
-                    question=state['question'],
-                    context=web_context,
-                    few_shot_examples=few_shot_examples,
-                    options=state.get('options')
-                )
+                # Use self-consistency if enabled (multiple sampling with voting)
+                if self.enable_self_consistency:
+                    result = self.reasoning.reason_with_self_consistency(
+                        question=state['question'],
+                        options=options,
+                        few_shot_examples=few_shot_examples,
+                        num_samples=self.self_consistency_samples,
+                        context=web_context
+                    )
+                    print(f"[DEBUG] Self-consistency samples: {result.get('num_samples', 0)}")
+                else:
+                    # Standard reasoning (with CoT if enabled)
+                    result = self.reasoning.reason(
+                        question=state['question'],
+                        context=web_context,
+                        few_shot_examples=few_shot_examples,
+                        options=options
+                    )
+                
                 state['reasoning_result'] = result
-                
                 print(f"[DEBUG] Reasoning type: {result.get('reasoning_type', 'unknown')}")
             else:
                 state['reasoning_result'] = {
@@ -290,8 +310,12 @@ class MedicalQAWorkflow:
                     question_type=state.get('question_type', 'multiple_choice')
                 )
                 
-                # Override answer with ensemble result
-                answer['answer'] = ensemble_result.get('answer', answer.get('answer', ''))
+                # Override answer with ensemble result ONLY if ensemble has valid answer
+                ensemble_answer = ensemble_result.get('answer', '')
+                if ensemble_answer:  # Only use ensemble answer if not empty
+                    answer['answer'] = ensemble_answer
+                # else: keep answer from answer_generator
+                
                 answer['confidence'] = ensemble_result.get('confidence', answer.get('confidence', 0.0))
                 answer['ensemble_consistency'] = ensemble_result.get('consistency', 0.0)
                 answer['ensemble_used'] = True
@@ -476,7 +500,8 @@ def create_workflow(
     enable_medprompt: bool = True,
     enable_few_shot: bool = None,
     enable_cot: bool = None,
-    enable_ensemble: bool = None
+    enable_ensemble: bool = None,
+    enable_self_consistency: bool = None
 ) -> MedicalQAWorkflow:
     """
     Create a MedicalQAWorkflow instance.
@@ -486,6 +511,7 @@ def create_workflow(
         enable_few_shot: Enable few-shot selection
         enable_cot: Enable Chain-of-Thought
         enable_ensemble: Enable choice shuffling ensemble
+        enable_self_consistency: Enable self-consistency (multiple sampling)
         
     Returns:
         Configured MedicalQAWorkflow instance
@@ -494,11 +520,13 @@ def create_workflow(
         return MedicalQAWorkflow(
             enable_few_shot=False,
             enable_cot=False,
-            enable_ensemble=False
+            enable_ensemble=False,
+            enable_self_consistency=False
         )
     
     return MedicalQAWorkflow(
         enable_few_shot=enable_few_shot,
         enable_cot=enable_cot,
-        enable_ensemble=enable_ensemble
+        enable_ensemble=enable_ensemble,
+        enable_self_consistency=enable_self_consistency
     )

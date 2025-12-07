@@ -187,10 +187,10 @@ def main():
     print("\n")
     example_multiple_choice()
     
-    # Uncomment to run more examples
-    example_yes_no()
-    example_clinical_reasoning()
-    example_without_medprompt()
+    # # Uncomment to run more examples
+    # example_yes_no()
+    # example_clinical_reasoning()
+    # example_without_medprompt()
     
     print("\n\n" + "="*60)
     print("Examples completed!")
