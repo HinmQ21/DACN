@@ -4,7 +4,7 @@ Hệ thống multi-agent sử dụng Gemini, LangChain và LangGraph để trả
 
 **Tích hợp Medprompt** - phương pháp prompt engineering tiên tiến từ Microsoft để cải thiện hiệu suất trên các bài toán y tế.
 
-## 🌟 Tính năng mới: Medprompt Integration
+## 🌟 Tính năng chính
 
 ### 1. Dynamic Few-shot Selection
 - Tự động tìm các câu hỏi tương tự từ training set
@@ -26,6 +26,12 @@ Hệ thống multi-agent sử dụng Gemini, LangChain và LangGraph để trả
 - Aggregation qua voting để tăng độ tin cậy
 - Phù hợp cho high-stakes questions
 
+### 5. 🆕 Self-Correction (Reflexion)
+- Agent tự phê bình và đánh giá câu trả lời
+- Phát hiện lỗ hổng logic và thiếu sót
+- Tự động sửa và cải thiện đáp án
+- 3 phases: Critique → Correction → Verification
+
 ## Workflow
 
 ```
@@ -46,7 +52,12 @@ Web Search              [Reasoning Agent]
           [Validator Agent]
               └── 📌 Choice Shuffling Ensemble
                  ↓
-         Answer Generator
+         [Answer Generator]
+                 ↓
+        [Reflexion Agent] 🆕
+            ├── Critique (đánh giá)
+            ├── Correction (sửa lỗi)
+            └── Verification (xác nhận)
                  ↓
               Output
 ```
@@ -61,26 +72,28 @@ DACN/
 │   ├── web_search.py        # Tavily + PubMed search
 │   ├── reasoning.py         # + Self-Generated CoT
 │   ├── validator.py         # + Choice Shuffling Ensemble
-│   └── answer_generator.py  
+│   ├── answer_generator.py  
+│   └── reflexion.py         # 🆕 Self-Correction (Reflexion)
 ├── workflows/
 │   ├── __init__.py
-│   └── medical_qa_graph.py  # LangGraph workflow với Medprompt
+│   └── medical_qa_graph.py  # LangGraph workflow với Medprompt + Reflexion
 ├── benchmarks/
 │   ├── __init__.py
 │   ├── medqa_eval.py        
 │   └── pubmedqa_eval.py     
 ├── utils/
 │   ├── __init__.py
-│   ├── config.py            # Cấu hình + Medprompt settings
+│   ├── config.py            # Cấu hình + Medprompt + Reflexion settings
 │   ├── metrics.py           
-│   ├── embedding_service.py # 🆕 Vector embeddings
-│   ├── knn_retriever.py     # 🆕 K-NN retrieval
-│   └── ensemble.py          # 🆕 Voting mechanisms
+│   ├── embedding_service.py # Vector embeddings
+│   ├── knn_retriever.py     # K-NN retrieval
+│   └── ensemble.py          # Voting mechanisms
 ├── data/
-│   └── knowledge_base/      # 🆕 Embedded training examples
-├── build_knowledge_base.py  # 🆕 Script build index
+│   └── knowledge_base/      # Embedded training examples
+├── build_knowledge_base.py  # Script build index
 ├── run_benchmark.py         # + Medprompt options
 ├── example_usage.py         
+├── .env.example             # 🆕 Template cấu hình
 ├── requirements.txt
 └── README.md
 ```
@@ -94,7 +107,12 @@ pip install -r requirements.txt
 
 ### Bước 2: Cấu hình API Keys
 
-1. Tạo file `.env`:
+1. Copy file `.env.example` thành `.env`:
+```bash
+cp .env.example .env
+```
+
+2. Điền API keys và cấu hình:
 ```env
 GOOGLE_API_KEY=your_gemini_api_key_here
 TAVILY_API_KEY=your_tavily_api_key_here
@@ -107,9 +125,14 @@ ENABLE_COT=true
 ENABLE_ENSEMBLE=true
 ENABLE_SELF_CONSISTENCY=false
 SELF_CONSISTENCY_SAMPLES=3
+
+# Reflexion settings
+ENABLE_REFLEXION=true
+REFLEXION_MAX_ITERATIONS=2
+REFLEXION_CONFIDENCE_THRESHOLD=0.7
 ```
 
-2. Lấy API Keys:
+3. Lấy API Keys:
    - **Google Gemini API**: https://makersuite.google.com/app/apikey
    - **Tavily API**: https://tavily.com/
 
@@ -127,7 +150,18 @@ python example_usage.py
 
 ### Chạy một câu hỏi đơn lẻ:
 ```bash
-python main.py --question "What is the most common cause of pneumonia?"
+python main.py --question "What is the most common cause of pneumonia?" \
+  --options "A. Virus" "B. Bacteria" "C. Fungus" "D. Parasite"
+```
+
+### Chạy với Reflexion (Self-Correction):
+```bash
+python main.py --reflexion --question "..." --options "A. ..." "B. ..."
+```
+
+### Chạy KHÔNG có Reflexion:
+```bash
+python main.py --no-reflexion --question "..." --options "A. ..." "B. ..."
 ```
 
 ### Chạy benchmark với Medprompt:
@@ -171,6 +205,8 @@ Xem chi tiết tại:
 | `ENSEMBLE_VARIANTS` | 5 | Số variants |
 | `ENABLE_SELF_CONSISTENCY` | false | Bật self-consistency (multiple sampling) |
 | `SELF_CONSISTENCY_SAMPLES` | 3 | Số lần sampling |
+| `ENABLE_REFLEXION` | true | 🆕 Bật self-correction (Reflexion) |
+| `REFLEXION_MAX_ITERATIONS` | 2 | 🆕 Số vòng lặp sửa lỗi tối đa |
 
 ## Các Agent
 
@@ -179,6 +215,10 @@ Xem chi tiết tại:
 3. **Reasoning Agent**: Suy luận logic + **Self-Generated CoT** + **Self-Consistency**
 4. **Validator**: Kiểm tra tính nhất quán + **Choice Shuffling Ensemble**
 5. **Answer Generator**: Tổng hợp câu trả lời cuối cùng (Structured Output với Pydantic)
+6. **Reflexion Agent** 🆕: Tự phê bình và sửa lỗi câu trả lời
+   - **Critique**: Đánh giá logic, accuracy, evidence
+   - **Correction**: Sửa và cải thiện câu trả lời
+   - **Verification**: Xác nhận correction tốt hơn original
 
 ## Metrics
 
@@ -199,17 +239,23 @@ Answer: B
 Explanation: Streptococcus pneumoniae is the most common bacterial cause 
 of community-acquired pneumonia in adults.
 
-Confidence: 0.89
+Confidence: 0.92
 Sources: 8
+Time taken: 45.32 seconds
 
 --- Medprompt Info ---
 Few-shot examples used: 3
 CoT reasoning: True
-Self-consistency: True (samples=3)
 Ensemble used: True
 Ensemble consistency: 0.80
-Predictions: ['B', 'B', 'B', 'B', 'A']
-Vote distribution: {'B': 0.8, 'A': 0.2}
+
+--- Reflexion (Self-Correction) Info ---
+Performed: True
+Iterations: 1
+Original answer: C
+Original confidence: 0.65
+Correction applied: Yes
+Reason: Improved reasoning after critique
 ```
 
 ## Tài liệu
@@ -224,6 +270,7 @@ Vote distribution: {'B': 0.8, 'A': 0.2}
 - [x] ~~Triển khai Medprompt (Few-shot, CoT, Ensemble)~~
 - [x] ~~Self-Consistency (Multiple Sampling)~~
 - [x] ~~Structured Output với Pydantic Parser~~
+- [x] ~~Self-Correction với Reflexion~~ 🆕
 - [ ] Thêm support cho hình ảnh y tế (X-ray, CT, MRI)
 - [ ] Tích hợp thêm datasets (MedMCQA, MMLU-Medical)
 - [ ] Web UI với Streamlit/Gradio
