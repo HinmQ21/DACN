@@ -6,6 +6,7 @@ from .reasoning import ReasoningAgent
 from .validator import ValidatorAgent
 from .answer_generator import AnswerGeneratorAgent
 from .reflexion import ReflexionAgent
+from .image_agent import ImageAgent
 
 __all__ = [
     'CoordinatorAgent',
@@ -13,6 +14,7 @@ __all__ = [
     'ReasoningAgent',
     'ValidatorAgent',
     'AnswerGeneratorAgent',
-    'ReflexionAgent'
+    'ReflexionAgent',
+    'ImageAgent'
 ]
 

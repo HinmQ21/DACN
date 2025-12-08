@@ -32,6 +32,10 @@ class Config:
     ANSWER_GENERATOR_TEMPERATURE: float = float(os.getenv("ANSWER_GENERATOR_TEMPERATURE", "0"))
     WEB_SEARCH_TEMPERATURE: float = float(os.getenv("WEB_SEARCH_TEMPERATURE", "0"))
     
+    # Image Agent Configuration (Multimodal)
+    IMAGE_MODEL: str = os.getenv("IMAGE_MODEL", "gemini-2.5-flash")
+    IMAGE_TEMPERATURE: float = float(os.getenv("IMAGE_TEMPERATURE", "0.3"))
+    
     # Benchmark Configuration
     MAX_SAMPLES: int = int(os.getenv("MAX_SAMPLES", "100"))
     BATCH_SIZE: int = int(os.getenv("BATCH_SIZE", "5"))
@@ -124,6 +128,9 @@ class Config:
             elif agent_name_lower == 'reflexion' and cls.REFLEXION_MODEL:
                 model = cls.REFLEXION_MODEL
                 temperature = cls.REFLEXION_TEMPERATURE or cls.TEMPERATURE
+            elif agent_name_lower == 'image':
+                model = cls.IMAGE_MODEL
+                temperature = cls.IMAGE_TEMPERATURE or cls.TEMPERATURE
         
         return {
             "model": model,
@@ -205,4 +212,8 @@ class Config:
         print(f"  Reflexion Enabled: {cls.ENABLE_REFLEXION}")
         print(f"  Reflexion Max Iterations: {cls.REFLEXION_MAX_ITERATIONS}")
         print(f"  Reflexion Confidence Threshold: {cls.REFLEXION_CONFIDENCE_THRESHOLD}")
+        
+        print(f"\n[Image Agent Settings]")
+        print(f"  Image Model: {cls.IMAGE_MODEL}")
+        print(f"  Image Temperature: {cls.IMAGE_TEMPERATURE}")
         print("=" * 60)

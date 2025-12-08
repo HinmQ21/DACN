@@ -26,14 +26,21 @@ Hệ thống multi-agent sử dụng Gemini, LangChain và LangGraph để trả
 - Aggregation qua voting để tăng độ tin cậy
 - Phù hợp cho high-stakes questions
 
-### 5. 🆕 Self-Correction (Reflexion)
+### 5. Self-Correction (Reflexion)
 - Agent tự phê bình và đánh giá câu trả lời
 - Phát hiện lỗ hổng logic và thiếu sót
 - Tự động sửa và cải thiện đáp án
 - 3 phases: Critique → Correction → Verification
 
+### 6. 🆕 Multimodal Perception (Image Analysis & VQA)
+- Phân tích ảnh y tế (X-ray, CT, MRI, đơn thuốc...)
+- Visual Question Answering (VQA) trên ảnh y tế
+- Hỗ trợ input từ file path hoặc URL
+- Tự động routing giữa text workflow và image workflow
+
 ## Workflow
 
+### Text-based QA Workflow
 ```
             Input Question 
                  ↓
@@ -54,10 +61,29 @@ Web Search              [Reasoning Agent]
                  ↓
          [Answer Generator]
                  ↓
-        [Reflexion Agent] 🆕
+        [Reflexion Agent]
             ├── Critique (đánh giá)
             ├── Correction (sửa lỗi)
             └── Verification (xác nhận)
+                 ↓
+              Output
+```
+
+### 🆕 Image-based QA Workflow
+```
+      Input (Image + Question)
+                 ↓
+         [Image Agent] 🖼️
+            ├── Analyze medical image
+            └── Extract findings
+                 ↓
+        [Image Reasoning]
+            ├── VQA mode (if question)
+            └── Analysis mode (no question)
+                 ↓
+        [Image Validator]
+                 ↓
+        [Answer Generator]
                  ↓
               Output
 ```
@@ -73,10 +99,12 @@ DACN/
 │   ├── reasoning.py         # + Self-Generated CoT
 │   ├── validator.py         # + Choice Shuffling Ensemble
 │   ├── answer_generator.py  
-│   └── reflexion.py         # 🆕 Self-Correction (Reflexion)
+│   ├── reflexion.py         # Self-Correction (Reflexion)
+│   └── image_agent.py       # 🆕 Image Analysis & VQA
 ├── workflows/
 │   ├── __init__.py
-│   └── medical_qa_graph.py  # LangGraph workflow với Medprompt + Reflexion
+│   ├── medical_qa_graph.py  # LangGraph workflow với Medprompt + Reflexion
+│   └── image_qa_graph.py    # 🆕 Image QA workflow (subgraph)
 ├── benchmarks/
 │   ├── __init__.py
 │   ├── medqa_eval.py        
@@ -148,10 +176,28 @@ python example_usage.py
 
 ## Sử dụng
 
-### Chạy một câu hỏi đơn lẻ:
+### Chạy một câu hỏi đơn lẻ (Text):
 ```bash
 python main.py --question "What is the most common cause of pneumonia?" \
   --options "A. Virus" "B. Bacteria" "C. Fungus" "D. Parasite"
+```
+
+### 🆕 Phân tích ảnh y tế:
+```bash
+# Phân tích ảnh từ file
+python main.py --image "path/to/chest_xray.jpg"
+
+# Phân tích ảnh từ URL
+python main.py --image "https://example.com/medical-image.png"
+
+# VQA - Trả lời câu hỏi về ảnh
+python main.py --image "path/to/xray.jpg" \
+  --question "Is there any sign of pneumonia?"
+
+# VQA với multiple choice
+python main.py --image "path/to/xray.jpg" \
+  --question "What type of imaging is shown?" \
+  --options "A. MRI" "B. CT scan" "C. X-ray" "D. Ultrasound"
 ```
 
 ### Chạy với Reflexion (Self-Correction):
@@ -205,20 +251,29 @@ Xem chi tiết tại:
 | `ENSEMBLE_VARIANTS` | 5 | Số variants |
 | `ENABLE_SELF_CONSISTENCY` | false | Bật self-consistency (multiple sampling) |
 | `SELF_CONSISTENCY_SAMPLES` | 3 | Số lần sampling |
-| `ENABLE_REFLEXION` | true | 🆕 Bật self-correction (Reflexion) |
-| `REFLEXION_MAX_ITERATIONS` | 2 | 🆕 Số vòng lặp sửa lỗi tối đa |
+| `ENABLE_REFLEXION` | true | Bật self-correction (Reflexion) |
+| `REFLEXION_MAX_ITERATIONS` | 2 | Số vòng lặp sửa lỗi tối đa |
+| `IMAGE_MODEL` | gemini-2.5-flash | 🆕 Model cho image analysis |
+| `IMAGE_TEMPERATURE` | 0.3 | 🆕 Temperature cho image agent |
 
 ## Các Agent
 
+### Text-based Agents
 1. **Coordinator**: Phân tích câu hỏi + **Dynamic Few-shot Selection**
 2. **Web Search Agent**: Tìm kiếm từ Tavily và PubMed
 3. **Reasoning Agent**: Suy luận logic + **Self-Generated CoT** + **Self-Consistency**
 4. **Validator**: Kiểm tra tính nhất quán + **Choice Shuffling Ensemble**
 5. **Answer Generator**: Tổng hợp câu trả lời cuối cùng (Structured Output với Pydantic)
-6. **Reflexion Agent** 🆕: Tự phê bình và sửa lỗi câu trả lời
+6. **Reflexion Agent**: Tự phê bình và sửa lỗi câu trả lời
    - **Critique**: Đánh giá logic, accuracy, evidence
    - **Correction**: Sửa và cải thiện câu trả lời
    - **Verification**: Xác nhận correction tốt hơn original
+
+### 🆕 Multimodal Agent
+7. **Image Agent**: Phân tích ảnh y tế và VQA
+   - **analyze_image()**: Phân tích tổng quan (findings, interpretation)
+   - **answer_question()**: Trả lời câu hỏi dựa trên ảnh
+   - Hỗ trợ: X-ray, CT, MRI, đơn thuốc, lab results...
 
 ## Metrics
 
@@ -270,9 +325,10 @@ Reason: Improved reasoning after critique
 - [x] ~~Triển khai Medprompt (Few-shot, CoT, Ensemble)~~
 - [x] ~~Self-Consistency (Multiple Sampling)~~
 - [x] ~~Structured Output với Pydantic Parser~~
-- [x] ~~Self-Correction với Reflexion~~ 🆕
-- [ ] Thêm support cho hình ảnh y tế (X-ray, CT, MRI)
+- [x] ~~Self-Correction với Reflexion~~
+- [x] ~~Multimodal Perception (Image Analysis & VQA)~~ 🆕
 - [ ] Tích hợp thêm datasets (MedMCQA, MMLU-Medical)
+- [ ] Image-based benchmark evaluation
 - [ ] Web UI với Streamlit/Gradio
 - [ ] API server với FastAPI
 

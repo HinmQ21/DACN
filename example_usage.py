@@ -1,6 +1,6 @@
 """Example usage of the Medical QA Multi-Agent System with Medprompt."""
 
-from workflows import MedicalQAWorkflow, create_workflow
+from workflows import MedicalQAWorkflow, create_workflow, ImageQAWorkflow, create_image_workflow, detect_input_type
 from utils.config import Config
 
 
@@ -178,6 +178,132 @@ def example_without_medprompt():
     print(f"\nMedprompt enabled: {medprompt_info.get('enabled', False)}")
 
 
+def example_image_analysis():
+    """Example: Medical image analysis (X-ray, CT, etc.)."""
+    print("\n\n" + "="*60)
+    print("Example 5: Medical Image Analysis")
+    print("="*60)
+    
+    # Create image workflow
+    workflow = create_image_workflow()
+    
+    # Example with a sample medical image URL
+    # You can replace with local file path: "./images/chest_xray.jpg"
+    image_url = "https://upload.wikimedia.org/wikipedia/commons/c/c8/Chest_Xray_PA_3-8-2010.png"
+    
+    print(f"\nAnalyzing image: {image_url}")
+    print("(This is a sample chest X-ray from Wikipedia)")
+    
+    result = workflow.analyze(image_input=image_url)
+    
+    print(f"\n--- Results ---")
+    print(f"Success: {result.get('image_analysis', {}).get('success', False)}")
+    print(f"Image Type: {result.get('image_type', 'N/A')}")
+    print(f"Confidence: {result['confidence']:.2f}")
+    
+    if result.get('findings'):
+        print(f"\nFindings:")
+        for finding in result['findings']:
+            print(f"  - {finding}")
+    
+    print(f"\nInterpretation: {result['answer']}")
+    
+    if result.get('error'):
+        print(f"\nError: {result['error']}")
+
+
+def example_image_vqa():
+    """Example: Visual Question Answering on medical image."""
+    print("\n\n" + "="*60)
+    print("Example 6: Medical Image VQA (Visual Question Answering)")
+    print("="*60)
+    
+    # Create image workflow
+    workflow = create_image_workflow()
+    
+    # Example with a sample medical image URL
+    image_url = "https://upload.wikimedia.org/wikipedia/commons/c/c8/Chest_Xray_PA_3-8-2010.png"
+
+    # Question about the image
+    question = "Is there any sign of cardiomegaly (enlarged heart) in this chest X-ray?"
+    
+    print(f"\nImage: {image_url}")
+    print(f"Question: {question}")
+    
+    result = workflow.ask(
+        image_input=image_url,
+        question=question
+    )
+    
+    print(f"\n--- Results ---")
+    print(f"Answer: {result['answer']}")
+    print(f"Confidence: {result['confidence']:.2f}")
+    print(f"\nExplanation: {result['explanation'][:500]}..." if len(result.get('explanation', '')) > 500 else f"\nExplanation: {result.get('explanation', 'N/A')}")
+    
+    if result.get('error'):
+        print(f"\nError: {result['error']}")
+
+
+def example_image_vqa_multiple_choice():
+    """Example: VQA with multiple choice options."""
+    print("\n\n" + "="*60)
+    print("Example 7: Medical Image VQA with Multiple Choice")
+    print("="*60)
+    
+    # Create image workflow
+    workflow = create_image_workflow()
+    
+    # Example with a sample medical image URL
+    image_url = "https://upload.wikimedia.org/wikipedia/commons/c/c8/Chest_Xray_PA_3-8-2010.png"
+
+    # Multiple choice question
+    question = "What type of medical imaging is shown?"
+    options = {
+        "A": "MRI scan",
+        "B": "CT scan",
+        "C": "Chest X-ray",
+        "D": "Ultrasound"
+    }
+    
+    print(f"\nImage: {image_url}")
+    print(f"Question: {question}")
+    print("Options:")
+    for k, v in options.items():
+        print(f"  {k}: {v}")
+    
+    result = workflow.ask(
+        image_input=image_url,
+        question=question,
+        options=options
+    )
+    
+    print(f"\n--- Results ---")
+    print(f"Answer: {result['answer']}")
+    print(f"Confidence: {result['confidence']:.2f}")
+    
+    if result.get('error'):
+        print(f"\nError: {result['error']}")
+
+
+def example_auto_detect_workflow():
+    """Example: Automatically detect and route to appropriate workflow."""
+    print("\n\n" + "="*60)
+    print("Example 8: Auto-detect Input Type")
+    print("="*60)
+    
+    # Test 1: Text only
+    input_type = detect_input_type(question="What is diabetes?", image_input=None)
+    print(f"Text only -> Detected: {input_type}")
+    
+    # Test 2: Image only
+    input_type = detect_input_type(question=None, image_input="chest_xray.jpg")
+    print(f"Image only -> Detected: {input_type}")
+    
+    # Test 3: Image + Question (VQA)
+    input_type = detect_input_type(question="What is shown?", image_input="chest_xray.jpg")
+    print(f"Image + Question -> Detected: {input_type}")
+
+
 def example_show_config():
     """Show current Medprompt configuration."""
     print("="*60)
@@ -207,12 +333,18 @@ def main():
     
     # Run examples
     print("\n")
-    example_multiple_choice()
+    # example_multiple_choice()
     
     # # Uncomment to run more examples
     # example_yes_no()
     # example_clinical_reasoning()
     # example_without_medprompt()
+    
+    # # Image-related examples (uncomment to run)
+    # example_image_analysis()
+    # example_image_vqa()
+    # example_image_vqa_multiple_choice()
+    example_auto_detect_workflow()
     
     print("\n\n" + "="*60)
     print("Examples completed!")
