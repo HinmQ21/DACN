@@ -94,7 +94,7 @@ class MedicalQAWorkflow:
         self.web_search = WebSearchAgent()
         self.reasoning = ReasoningAgent(enable_cot=self.enable_cot)
         self.validator = ValidatorAgent(enable_ensemble=self.enable_ensemble)
-        self.answer_generator = AnswerGeneratorAgent()
+        self.answer_generator = AnswerGeneratorAgent(validator_agent=self.validator)
         self.reflexion = ReflexionAgent(enable_reflexion=self.enable_reflexion)
         
         # Build graph
@@ -208,7 +208,7 @@ class MedicalQAWorkflow:
             elapsed = time.time() - start_time
             print(f"[DEBUG] Reasoning FAILED after {elapsed:.2f}s: {str(e)}")
             state['error'] = f"Reasoning error: {str(e)}"
-            state['reasoning_result'] = {'raw_output': 'Error in reasoning', 'conclusion': ''}
+            state['reasoning_result'] = {'raw_output': 'Error in reasoning', 'conclusion': ''}        
         return state
     
     def _validator_node(self, state: AgentState) -> AgentState:
@@ -224,13 +224,24 @@ class MedicalQAWorkflow:
             web_search_result = state.get('web_search_result') or {}
             reasoning_result = state.get('reasoning_result') or {}
             
-            # Standard validation
-            validation = self.validator.validate(
+            # Validation with hybrid objective confidence
+            validation = self.validator.validate_with_objective_confidence(
                 question=state['question'],
                 web_search_result=web_search_result,
-                reasoning_result=reasoning_result
+                reasoning_result=reasoning_result,
+                answer=""  # Answer not available yet at validation stage
             )
             state['validation_result'] = validation
+            
+            # Log confidence breakdown
+            if 'confidence_breakdown' in validation:
+                breakdown = validation['confidence_breakdown']
+                print(f"[DEBUG] Confidence breakdown:")
+                print(f"  - LLM score: {breakdown.get('llm_score', 0):.2f}")
+                print(f"  - Evidence score: {breakdown.get('evidence_score', 0):.2f}")
+                print(f"  - Reasoning score: {breakdown.get('reasoning_score', 0):.2f}")
+                print(f"  - Consistency score: {breakdown.get('consistency_score', 0):.2f}")
+                print(f"  - Overall confidence: {validation.get('overall_confidence', 0):.2f}")
             
             elapsed = time.time() - start_time
             print(f"[DEBUG] Validator completed in {elapsed:.2f}s")
@@ -385,7 +396,10 @@ class MedicalQAWorkflow:
             web_search_result = state.get('web_search_result') or {}
             options = state.get('options') or {}
             
-            # Perform reflexion
+            # Check if ensemble was used
+            ensemble_used = final_answer.get('ensemble_used', False)
+            
+            # Perform reflexion with adaptive threshold
             reflexion_result = self.reflexion.reflect_and_correct(
                 question=state['question'],
                 options=options,
@@ -393,6 +407,7 @@ class MedicalQAWorkflow:
                 reasoning_result=reasoning_result,
                 validation_result=validation_result,
                 web_search_result=web_search_result,
+                ensemble_used=ensemble_used,
                 iteration=0
             )
             

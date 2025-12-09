@@ -172,16 +172,20 @@ Please verify which answer is better.""")
     def should_reflect(
         self,
         answer_result: Dict[str, Any],
-        validation_result: Dict[str, Any]
+        validation_result: Dict[str, Any],
+        ensemble_used: bool = False
     ) -> bool:
         """
-        Determine if reflexion should be triggered.
+        Determine if reflexion should be triggered based on confidence.
         
-        When reflexion is enabled, it ALWAYS runs to ensure answer quality.
+        Adaptive thresholds:
+        - With ensemble: trigger if confidence < 0.8
+        - Without ensemble: trigger if confidence < 0.85
         
         Args:
             answer_result: Result from AnswerGenerator
             validation_result: Result from Validator
+            ensemble_used: Whether ensemble was used
             
         Returns:
             True if reflexion should be performed
@@ -189,9 +193,24 @@ Please verify which answer is better.""")
         if not self.enable_reflexion:
             return False
         
-        # Always perform reflexion when enabled
-        print("[Reflexion] Triggered: reflexion enabled - always perform self-correction")
-        return True
+        # Adaptive threshold based on ensemble usage
+        if ensemble_used:
+            threshold = 0.8
+            reason = "ensemble used"
+        else:
+            threshold = 0.85
+            reason = "no ensemble"
+        
+        # Get confidence
+        confidence = answer_result.get('confidence', 0.0)
+        
+        # Check if reflexion needed
+        if confidence < threshold:
+            print(f"[Reflexion] Triggered: confidence {confidence:.2f} < threshold {threshold:.2f} ({reason})")
+            return True
+        else:
+            print(f"[Reflexion] Skipped: confidence {confidence:.2f} >= threshold {threshold:.2f} ({reason})")
+            return False
     
     def critique(
         self,
@@ -326,6 +345,7 @@ Please verify which answer is better.""")
         reasoning_result: Dict[str, Any],
         validation_result: Dict[str, Any],
         web_search_result: Dict[str, Any] = None,
+        ensemble_used: bool = False,
         iteration: int = 0
     ) -> Dict[str, Any]:
         """
@@ -338,6 +358,7 @@ Please verify which answer is better.""")
             reasoning_result: Reasoning result
             validation_result: Validation result
             web_search_result: Optional web search results
+            ensemble_used: Whether ensemble was used
             iteration: Current iteration number
             
         Returns:
@@ -345,12 +366,12 @@ Please verify which answer is better.""")
         """
         print(f"[Reflexion] Starting iteration {iteration + 1}/{self.max_iterations}")
         
-        # Check if we should reflect
-        if not self.should_reflect(answer_result, validation_result) and iteration == 0:
-            print("[Reflexion] Skipped: reflexion is disabled")
+        # Check if we should reflect (with adaptive threshold)
+        if not self.should_reflect(answer_result, validation_result, ensemble_used) and iteration == 0:
+            print("[Reflexion] Skipped: confidence above threshold")
             return {
                 'performed': False,
-                'reason': 'Reflexion is disabled',
+                'reason': 'Confidence above threshold',
                 'final_answer': answer_result,
                 'iterations': 0
             }
@@ -431,6 +452,7 @@ Please verify which answer is better.""")
                     reasoning_result={'raw_output': corrected.get('improved_reasoning', '')},
                     validation_result=validation_result,
                     web_search_result=web_search_result,
+                    ensemble_used=ensemble_used,
                     iteration=iteration + 1
                 )
             

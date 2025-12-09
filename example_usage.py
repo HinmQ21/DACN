@@ -343,8 +343,8 @@ def main():
     # # Image-related examples (uncomment to run)
     # example_image_analysis()
     # example_image_vqa()
-    # example_image_vqa_multiple_choice()
-    example_auto_detect_workflow()
+    example_image_vqa_multiple_choice()
+    # example_auto_detect_workflow()
     
     print("\n\n" + "="*60)
     print("Examples completed!")

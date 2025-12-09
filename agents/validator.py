@@ -8,6 +8,7 @@ from utils.ensemble import EnsembleManager, ChoiceShuffler, EnsembleVoter
 import json
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
+from collections import Counter
 
 
 class ValidatorAgent:
@@ -133,6 +134,242 @@ Please evaluate and validate.""")
             }
         
         return validation
+    
+    def calculate_evidence_score(self, web_search_result: Dict[str, Any]) -> float:
+        """
+        Tính điểm objective dựa trên chất lượng nguồn thông tin.
+        
+        Args:
+            web_search_result: Kết quả từ web search
+            
+        Returns:
+            Evidence score từ 0.0 đến 1.0
+        """
+        total_sources = web_search_result.get('total_sources', 0)
+        pubmed_results = web_search_result.get('pubmed_results', [])
+        pubmed_count = len(pubmed_results)
+        
+        # Điểm theo số lượng nguồn (max 10 sources = 1.0)
+        source_score = min(total_sources / 10.0, 1.0)
+        
+        # Bonus cho PubMed (nguồn y tế đáng tin cậy)
+        pubmed_bonus = min(pubmed_count / 5.0, 0.3)  # Max +0.3 bonus
+        
+        # Penalty nếu không có nguồn
+        if total_sources == 0:
+            return 0.0
+        
+        evidence_score = min(source_score + pubmed_bonus, 1.0)
+        return evidence_score
+    
+    def calculate_reasoning_score(self, reasoning_result: Dict[str, Any]) -> float:
+        """
+        Tính điểm objective dựa trên chất lượng suy luận.
+        
+        Args:
+            reasoning_result: Kết quả từ reasoning agent
+            
+        Returns:
+            Reasoning score từ 0.0 đến 1.0
+        """
+        reasoning_type = reasoning_result.get('reasoning_type', 'standard')
+        structured = reasoning_result.get('structured', {})
+        
+        # Base score theo loại reasoning
+        type_scores = {
+            'cot': 0.8,              # Chain-of-Thought có cấu trúc
+            'self_consistency': 0.9,  # Self-consistency cao nhất
+            'standard': 0.6           # Standard thấp hơn
+        }
+        base_score = type_scores.get(reasoning_type, 0.5)
+        
+        # Bonus cho có conclusion rõ ràng
+        conclusion = structured.get('conclusion', '')
+        conclusion_bonus = 0.1 if len(conclusion) > 20 else 0.0
+        
+        # Bonus cho có analysis chi tiết
+        analysis = structured.get('analysis', '')
+        analysis_bonus = 0.1 if len(analysis) > 50 else 0.0
+        
+        reasoning_score = min(base_score + conclusion_bonus + analysis_bonus, 1.0)
+        return reasoning_score
+    
+    def calculate_consistency_score(
+        self,
+        web_search_result: Dict[str, Any],
+        reasoning_result: Dict[str, Any],
+        answer: str = ""
+    ) -> float:
+        """
+        Tính điểm consistency giữa các nguồn thông tin.
+        
+        Args:
+            web_search_result: Kết quả từ web search
+            reasoning_result: Kết quả từ reasoning
+            answer: Đáp án đã chọn (optional)
+            
+        Returns:
+            Consistency score từ 0.0 đến 1.0
+        """
+        web_synthesis = web_search_result.get('synthesis', '').lower()
+        reasoning_conclusion = reasoning_result.get('conclusion', '').lower()
+        answer_lower = str(answer).lower()
+        
+        # Check answer có xuất hiện trong reasoning
+        answer_in_reasoning = answer_lower in reasoning_conclusion if answer else 0.5
+        
+        # Check answer có được support bởi web evidence
+        answer_in_web = answer_lower in web_synthesis if answer else 0.5
+        
+        # Length-based confidence (dài = nhiều chi tiết)
+        web_length_score = min(len(web_synthesis) / 1000.0, 0.3)
+        reasoning_length_score = min(len(reasoning_conclusion) / 500.0, 0.3)
+        
+        consistency_score = (
+            (0.4 if answer_in_reasoning else 0.0) +
+            (0.4 if answer_in_web else 0.0) +
+            web_length_score +
+            reasoning_length_score
+        )
+        
+        return min(consistency_score, 1.0)
+    
+    def apply_self_consistency_bonus(
+        self,
+        base_confidence: float,
+        reasoning_result: Dict[str, Any]
+    ) -> float:
+        """
+        Áp dụng bonus nếu dùng self-consistency với agreement cao.
+        
+        Args:
+            base_confidence: Confidence cơ bản
+            reasoning_result: Kết quả reasoning
+            
+        Returns:
+            Confidence sau khi thêm bonus
+        """
+        if reasoning_result.get('reasoning_type') != 'self_consistency':
+            return base_confidence
+        
+        all_conclusions = reasoning_result.get('all_conclusions', [])
+        num_samples = reasoning_result.get('num_samples', 0)
+        
+        if num_samples < 2:
+            return base_confidence
+        
+        # Tính agreement ratio
+        counter = Counter(all_conclusions)
+        most_common_count = counter.most_common(1)[0][1] if counter else 0
+        agreement_ratio = most_common_count / num_samples if num_samples > 0 else 0
+        
+        # Bonus từ 0% - 15% tùy agreement
+        bonus = agreement_ratio * 0.15
+        
+        return min(base_confidence + bonus, 1.0)
+    
+    def calculate_objective_confidence(
+        self,
+        web_search_result: Dict[str, Any],
+        reasoning_result: Dict[str, Any],
+        llm_validation: Dict[str, Any],
+        answer: str = ""
+    ) -> Dict[str, Any]:
+        """
+        Tính confidence hybrid: kết hợp objective metrics và LLM assessment.
+        
+        Args:
+            web_search_result: Kết quả web search
+            reasoning_result: Kết quả reasoning
+            llm_validation: Kết quả validation từ LLM
+            answer: Đáp án (optional)
+            
+        Returns:
+            Dictionary với overall_confidence và breakdown
+        """
+        # 1. Evidence score (objective)
+        evidence_score = self.calculate_evidence_score(web_search_result)
+        
+        # 2. Reasoning score (objective)
+        reasoning_score = self.calculate_reasoning_score(reasoning_result)
+        
+        # 3. Consistency score (objective)
+        consistency_score = self.calculate_consistency_score(
+            web_search_result, reasoning_result, answer
+        )
+        
+        # 4. LLM validator score (giảm weight từ 100% → 30%)
+        llm_score = llm_validation.get('overall_confidence', 0.7)
+        
+        # 5. Weighted average
+        weights = {
+            'llm': 0.30,
+            'evidence': 0.25,
+            'reasoning': 0.25,
+            'consistency': 0.20
+        }
+        
+        objective_confidence = (
+            llm_score * weights['llm'] +
+            evidence_score * weights['evidence'] +
+            reasoning_score * weights['reasoning'] +
+            consistency_score * weights['consistency']
+        )
+        
+        # 6. Apply self-consistency bonus
+        final_confidence = self.apply_self_consistency_bonus(
+            objective_confidence, reasoning_result
+        )
+        
+        return {
+            'overall_confidence': final_confidence,
+            'objective_confidence': objective_confidence,
+            'breakdown': {
+                'llm_score': llm_score,
+                'evidence_score': evidence_score,
+                'reasoning_score': reasoning_score,
+                'consistency_score': consistency_score,
+                'self_consistency_bonus': final_confidence - objective_confidence,
+                'weights_used': weights
+            }
+        }
+    
+    def validate_with_objective_confidence(
+        self,
+        question: str,
+        web_search_result: Dict[str, Any],
+        reasoning_result: Dict[str, Any],
+        answer: str = ""
+    ) -> Dict[str, Any]:
+        """
+        Validate với hybrid confidence calculation.
+        
+        Args:
+            question: Câu hỏi
+            web_search_result: Kết quả web search
+            reasoning_result: Kết quả reasoning
+            answer: Đáp án (optional)
+            
+        Returns:
+            Validation result với hybrid confidence
+        """
+        # Get LLM validation
+        llm_validation = self.validate(question, web_search_result, reasoning_result)
+        
+        # Calculate objective confidence
+        confidence_result = self.calculate_objective_confidence(
+            web_search_result,
+            reasoning_result,
+            llm_validation,
+            answer
+        )
+        
+        # Merge results
+        llm_validation['overall_confidence'] = confidence_result['overall_confidence']
+        llm_validation['objective_confidence'] = confidence_result['objective_confidence']
+        llm_validation['confidence_breakdown'] = confidence_result['breakdown']
+        
+        return llm_validation
     
     def is_multiple_choice(self, options: Any) -> bool:
         """Check if the question has valid multiple choice options."""

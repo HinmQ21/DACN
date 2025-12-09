@@ -222,6 +222,9 @@ Return a concise analysis in JSON format:
         )
         analysis['num_similar_examples'] = len(similar_examples)
         
+        # Logging
+        # print(f"[Coordinator] Analysis: {analysis}")
+        
         return analysis
     
     def analyze_with_context(

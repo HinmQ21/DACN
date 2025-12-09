@@ -29,9 +29,10 @@ class YesNoAnswer(BaseModel):
 class AnswerGeneratorAgent:
     """Agent tạo câu trả lời cuối cùng."""
     
-    def __init__(self):
+    def __init__(self, validator_agent=None):
         # Use answer_generator-specific configuration
         self.llm = ChatGoogleGenerativeAI(**Config.get_llm_config('answer_generator'))
+        self.validator_agent = validator_agent  # For recalculating confidence with answer
         
         # Create parsers for structured output
         self.mc_parser = PydanticOutputParser(pydantic_object=MultipleChoiceAnswer)
@@ -197,11 +198,16 @@ Please provide the final answer in the specified JSON format.""",
             if answer:
                 print(f"[AnswerGenerator] Regex extracted answer: {answer}")
         
+        # Base confidence from validation
+        base_confidence = validation_result.get('overall_confidence', 0.0)
+        confidence_breakdown = validation_result.get('confidence_breakdown', {})
+        
         return {
             'answer': answer,
             'explanation': explanation.strip() if explanation else '',
             'full_response': response_content,
-            'confidence': validation_result.get('overall_confidence', 0.0),
+            'confidence': base_confidence,
+            'confidence_breakdown': confidence_breakdown,
             'sources_count': web_search_result.get('total_sources', 0),
             'parsed_successfully': parsed_successfully
         }
@@ -285,14 +291,31 @@ Please provide the final answer in the specified JSON format.""",
                 )
                 last_result = result
                 
-                ## Log answer generator result
-                print(f"[AnswerGenerator] Result: {result}")
-                print(f"[AnswerGenerator] Answer: {result['answer']}")
-                print(f"[AnswerGenerator] Explanation: {result['explanation']}")
-                print(f"[AnswerGenerator] Confidence: {result['confidence']}")
-                print(f"[AnswerGenerator] Sources Count: {result['sources_count']}")
-                print(f"[AnswerGenerator] Parsed Successfully: {result['parsed_successfully']}")
-                print(f"[AnswerGenerator] Full Response: {result['full_response']}")
+                # Recalculate confidence with actual answer (if validator available)
+                if self.validator_agent and result['answer']:
+                    try:
+                        updated_confidence = self.validator_agent.calculate_objective_confidence(
+                            web_search_result=web_search_result,
+                            reasoning_result=reasoning_result,
+                            llm_validation=validation_result,
+                            answer=result['answer']
+                        )
+                        result['confidence'] = updated_confidence['overall_confidence']
+                        result['confidence_breakdown'] = updated_confidence['breakdown']
+                        print(f"[AnswerGenerator] Confidence recalculated with answer: {result['confidence']:.2f}")
+                    except Exception as e:
+                        print(f"[AnswerGenerator] Failed to recalculate confidence: {e}")
+                
+                # ## Log answer generator result
+                # print(f"[AnswerGenerator] Result: {result}")
+                # print(f"[AnswerGenerator] Answer: {result['answer']}")
+                # print(f"[AnswerGenerator] Explanation: {result['explanation']}")
+                # print(f"[AnswerGenerator] Confidence: {result['confidence']}")
+                # if 'confidence_breakdown' in result:
+                #     print(f"[AnswerGenerator] Confidence breakdown: {result['confidence_breakdown']}")
+                # print(f"[AnswerGenerator] Sources Count: {result['sources_count']}")
+                # print(f"[AnswerGenerator] Parsed Successfully: {result['parsed_successfully']}")
+                # print(f"[AnswerGenerator] Full Response: {result['full_response']}")
                 
                 # If we got an answer, return immediately
                 if result['answer']:
