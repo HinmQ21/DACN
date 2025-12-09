@@ -4,6 +4,17 @@ Hệ thống multi-agent sử dụng Gemini, LangChain và LangGraph để trả
 
 **Tích hợp Medprompt** - phương pháp prompt engineering tiên tiến từ Microsoft để cải thiện hiệu suất trên các bài toán y tế.
 
+## 🚀 Super Graph - NEW!
+
+**Master Coordinator Agent** với intelligent routing tự động:
+- ✅ **Direct Answer**: Trả lời nhanh câu hỏi đơn giản (1-3 giây)
+- 🔬 **Medical QA Subgraph**: Phân tích sâu câu hỏi phức tạp (10-30 giây)
+- 🖼️ **Image QA Subgraph**: Xử lý ảnh y tế và VQA (5-15 giây)
+
+**Tự động phát hiện độ phức tạp** và route đến workflow phù hợp!
+
+👉 Xem hướng dẫn chi tiết: [SUPER_GRAPH_GUIDE.md](SUPER_GRAPH_GUIDE.md)
+
 ## 🌟 Tính năng chính
 
 ### 1. Dynamic Few-shot Selection
@@ -176,9 +187,31 @@ python example_usage.py
 
 ## Sử dụng
 
-### Chạy một câu hỏi đơn lẻ (Text):
+### 🆕 Super Graph (Intelligent Routing - Recommended)
+
+Super Graph tự động phát hiện độ phức tạp và route đến workflow phù hợp:
+
 ```bash
-python main.py --question "What is the most common cause of pneumonia?" \
+# Câu hỏi đơn giản (trả lời trực tiếp, nhanh)
+python main.py --question "What is hypertension?"
+
+# Câu hỏi phức tạp (route đến Medical QA subgraph)
+python main.py --question "A 45-year-old man presents with chest pain..." \
+  --options "A. Anterior MI" "B. Inferior MI" "C. PE" "D. Dissection"
+
+# Ảnh y tế (route đến Image QA subgraph)
+python main.py --image "path/to/xray.jpg" --question "What is the diagnosis?"
+```
+
+**Xem ví dụ chi tiết**: `python example_super_graph.py`
+
+### Legacy Mode (Direct Routing)
+
+Nếu muốn bỏ qua Super Graph và dùng routing trực tiếp:
+
+```bash
+# Chạy một câu hỏi đơn lẻ (Text):
+python main.py --legacy-mode --question "What is the most common cause of pneumonia?" \
   --options "A. Virus" "B. Bacteria" "C. Fungus" "D. Parasite"
 ```
 

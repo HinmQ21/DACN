@@ -1,14 +1,19 @@
 """Main script to run medical QA system on single questions."""
 
 import argparse
-from workflows import MedicalQAWorkflow, create_workflow, ImageQAWorkflow, create_image_workflow, detect_input_type
+from workflows import (
+    MedicalQAWorkflow, create_workflow, 
+    ImageQAWorkflow, create_image_workflow, 
+    SuperGraph, create_super_graph,
+    detect_input_type
+)
 from utils.config import Config
 import json
 import time
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Medical QA Multi-Agent System")
+    parser = argparse.ArgumentParser(description="Medical QA Multi-Agent System with Super Graph")
     parser.add_argument(
         '--question', 
         type=str, 
@@ -37,6 +42,19 @@ def main():
         '--verbose',
         action='store_true',
         help='Show detailed output'
+    )
+    
+    # Workflow selection
+    parser.add_argument(
+        '--use-super-graph',
+        action='store_true',
+        default=True,
+        help='Use super graph with intelligent routing (default: True)'
+    )
+    parser.add_argument(
+        '--legacy-mode',
+        action='store_true',
+        help='Use legacy direct workflow routing instead of super graph'
     )
     
     # Reflexion arguments
@@ -89,18 +107,63 @@ def main():
                 # Fallback: use first character as key
                 options_dict[opt[0]] = opt
     
-    # Detect input type and route to appropriate workflow
-    input_type = detect_input_type(question=args.question, image_input=args.image)
+    # Determine workflow mode
+    use_super_graph = args.use_super_graph and not args.legacy_mode
     
-    if input_type == 'image':
-        # Image workflow
-        result = run_image_workflow(args, options_dict)
+    if use_super_graph:
+        # Use Super Graph with intelligent routing
+        result = run_super_graph(args, options_dict, enable_reflexion)
     else:
-        # Text workflow
-        result = run_text_workflow(args, options_dict, enable_reflexion)
+        # Legacy mode: Detect input type and route to appropriate workflow
+        input_type = detect_input_type(question=args.question, image_input=args.image)
+        
+        if input_type == 'image':
+            # Image workflow
+            result = run_image_workflow(args, options_dict)
+        else:
+            # Text workflow
+            result = run_text_workflow(args, options_dict, enable_reflexion)
     
     # Display results
     display_results(result, args)
+
+
+def run_super_graph(args, options_dict, enable_reflexion):
+    """Run the Super Graph with intelligent routing."""
+    print("Initializing Super Graph with Master Coordinator...")
+    workflow = create_super_graph(enable_reflexion=enable_reflexion)
+    
+    if args.question and args.image:
+        print(f"\nQuestion: {args.question}")
+        print(f"Image: {args.image}")
+        print("Mode: Hybrid (Question + Image)")
+    elif args.question:
+        print(f"\nQuestion: {args.question}")
+        print("Mode: Text-based")
+    elif args.image:
+        print(f"\nImage: {args.image}")
+        print("Mode: Image-based")
+    
+    if options_dict:
+        print("Options:")
+        for key, value in options_dict.items():
+            print(f"  {key}: {value}")
+    
+    print("\nProcessing with intelligent routing... (this may take a minute)")
+    
+    start_time = time.time()
+    
+    result = workflow.run(
+        question=args.question,
+        image_input=args.image,
+        options=options_dict,
+        question_type=args.type
+    )
+    
+    result['elapsed_time'] = time.time() - start_time
+    result['workflow_type'] = 'super_graph'
+    
+    return result
 
 
 def run_text_workflow(args, options_dict, enable_reflexion):
@@ -182,7 +245,29 @@ def display_results(result, args):
     print(f"\nExplanation: {result['explanation']}")
     print(f"\nConfidence: {result['confidence']:.2f}")
     
-    if workflow_type == 'text':
+    # Super graph specific info
+    if workflow_type == 'super_graph':
+        routed_to = result.get('routed_to', 'unknown')
+        workflow_used = result.get('workflow_used', routed_to)
+        print(f"Workflow used: {workflow_used}")
+        
+        routing_decision = result.get('routing_decision', {})
+        if routing_decision:
+            print(f"Complexity: {routing_decision.get('complexity', 'N/A')}")
+            print(f"Input type: {routing_decision.get('input_type', 'N/A')}")
+        
+        # Show relevant info based on which subgraph was used
+        if workflow_used == 'medical_qa':
+            print(f"Sources used: {result.get('sources_count', 0)}")
+        elif workflow_used == 'image_qa':
+            print(f"Mode: {result.get('mode', 'analysis')}")
+            if result.get('image_type'):
+                print(f"Image type: {result['image_type']}")
+            if result.get('findings'):
+                print(f"Findings: {len(result['findings'])} items")
+        elif workflow_used == 'direct_answer':
+            print(f"Method: Direct answer (simple question)")
+    elif workflow_type == 'text':
         print(f"Sources used: {result.get('sources_count', 0)}")
     else:
         # Image workflow specific info
@@ -194,8 +279,8 @@ def display_results(result, args):
     
     print(f"Time taken: {elapsed_time:.2f} seconds")
     
-    # Display Reflexion info (text workflow only)
-    if workflow_type == 'text':
+    # Display Reflexion info (text and super_graph workflows)
+    if workflow_type in ['text', 'super_graph']:
         reflexion_info = result.get('reflexion', {})
         if reflexion_info.get('enabled'):
             print("\n" + "-"*60)
@@ -237,10 +322,19 @@ def display_results(result, args):
         if image_analysis.get('raw_output'):
             print(f"\nRaw Analysis:\n{image_analysis['raw_output'][:1000]}...")
     
-    if args.verbose and workflow_type == 'text':
+    if args.verbose and workflow_type in ['text', 'super_graph']:
         print("\n" + "-"*60)
         print("DETAILED ANALYSIS")
         print("-"*60)
+        
+        # Super graph routing details
+        if workflow_type == 'super_graph':
+            routing_decision = result.get('routing_decision', {})
+            if routing_decision:
+                print(f"\nRouting Decision:")
+                print(json.dumps(routing_decision, indent=2, ensure_ascii=False))
+        
+        # Coordinator analysis
         print(f"\nCoordinator Analysis:")
         print(json.dumps(result.get('coordinator_analysis', {}), indent=2, ensure_ascii=False))
         print(f"\nValidation Results:")
