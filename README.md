@@ -13,7 +13,7 @@ Hệ thống multi-agent sử dụng Gemini, LangChain và LangGraph để trả
 
 **Tự động phát hiện độ phức tạp** và route đến workflow phù hợp!
 
-👉 Xem hướng dẫn chi tiết: [SUPER_GRAPH_GUIDE.md](SUPER_GRAPH_GUIDE.md)
+👉 Xem hướng dẫn chi tiết: [SUPER_GRAPH_GUIDE.md](docs/SUPER_GRAPH_GUIDE.md)
 
 ## 💬 Multi-turn Chat - NEW!
 
@@ -23,7 +23,7 @@ Hệ thống multi-agent sử dụng Gemini, LangChain và LangGraph để trả
 - 🧠 **Smart Context**: Kết hợp summary + recent turns cho context tối ưu
 - 💾 **Session Management**: Track và export conversation sessions
 
-👉 Xem hướng dẫn chi tiết: [MULTI_TURN_GUIDE.md](MULTI_TURN_GUIDE.md)
+👉 Xem hướng dẫn chi tiết: [MULTI_TURN_GUIDE.md](docs/MULTI_TURN_GUIDE.md)
 
 ## 🌟 Tính năng chính
 
@@ -113,7 +113,7 @@ Web Search              [Reasoning Agent]
 
 ```
 DACN/
-├── agents/
+├── agents/                  # Multi-agent implementations
 │   ├── __init__.py
 │   ├── coordinator.py       # + Dynamic Few-shot Selection
 │   ├── web_search.py        # Tavily + PubMed search
@@ -121,28 +121,55 @@ DACN/
 │   ├── validator.py         # + Choice Shuffling Ensemble
 │   ├── answer_generator.py  
 │   ├── reflexion.py         # Self-Correction (Reflexion)
-│   └── image_agent.py       # 🆕 Image Analysis & VQA
-├── workflows/
+│   ├── image_agent.py       # 🆕 Image Analysis & VQA
+│   └── master_coordinator.py # 🆕 Super Graph intelligent routing
+├── workflows/               # LangGraph workflows
 │   ├── __init__.py
 │   ├── medical_qa_graph.py  # LangGraph workflow với Medprompt + Reflexion
-│   └── image_qa_graph.py    # 🆕 Image QA workflow (subgraph)
-├── benchmarks/
+│   ├── image_qa_graph.py    # 🆕 Image QA workflow (subgraph)
+│   ├── super_graph.py       # 🆕 Master graph with routing
+│   └── chat_session.py      # 🆕 Multi-turn chat with memory
+├── benchmarks/              # Evaluation scripts
 │   ├── __init__.py
 │   ├── medqa_eval.py        
-│   └── pubmedqa_eval.py     
-├── utils/
+│   ├── pubmedqa_eval.py
+│   └── single_llm_eval.py
+├── utils/                   # Utility modules
 │   ├── __init__.py
 │   ├── config.py            # Cấu hình + Medprompt + Reflexion settings
 │   ├── metrics.py           
 │   ├── embedding_service.py # Vector embeddings
 │   ├── knn_retriever.py     # K-NN retrieval
-│   └── ensemble.py          # Voting mechanisms
-├── data/
+│   ├── ensemble.py          # Voting mechanisms
+│   └── memory_manager.py    # 🆕 Conversation memory
+├── data/                    # Data storage
 │   └── knowledge_base/      # Embedded training examples
-├── build_knowledge_base.py  # Script build index
-├── run_benchmark.py         # + Medprompt options
-├── example_usage.py         
-├── .env.example             # 🆕 Template cấu hình
+├── docs/                    # 📚 Documentation
+│   ├── CONFIG_GUIDE.md
+│   ├── MEDPROMPT_GUIDE.md
+│   ├── DEVELOPMENT_GUIDE.md
+│   ├── SUPER_GRAPH_GUIDE.md
+│   ├── MULTI_TURN_GUIDE.md
+│   ├── IMPLEMENTATION_SUMMARY.md
+│   ├── PROJECT_SUMMARY.md
+│   └── architecture_diagram.md
+├── examples/                # 🎯 Example scripts
+│   ├── example_usage.py
+│   ├── example_super_graph.py
+│   ├── example_multi_turn_chat.py
+│   └── quick_start_multi_turn.py
+├── scripts/                 # 🔧 Utility scripts
+│   ├── build_knowledge_base.py
+│   ├── run_benchmark.py
+│   ├── run_benchmark_single_llm.py
+│   └── list_model.py
+├── results/                 # 📊 Benchmark results
+│   └── *.json               # Output files
+├── MedQA/                   # Dataset
+│   └── ...
+├── cache/                   # Model cache
+│   └── embeddings/
+├── main.py                  # 🚀 Main entry point
 ├── requirements.txt
 └── README.md
 ```
@@ -187,12 +214,12 @@ REFLEXION_CONFIDENCE_THRESHOLD=0.7
 
 ### Bước 3: Build Knowledge Base (cho Few-shot Selection)
 ```bash
-python build_knowledge_base.py --train_file MedQA/4_options/phrases_no_exclude_train.jsonl
+python scripts/build_knowledge_base.py --train_file MedQA/4_options/phrases_no_exclude_train.jsonl
 ```
 
 ### Bước 4: Kiểm tra cài đặt
 ```bash
-python example_usage.py
+python examples/example_usage.py
 ```
 
 ## Sử dụng
@@ -213,7 +240,7 @@ python main.py --question "A 45-year-old man presents with chest pain..." \
 python main.py --image "path/to/xray.jpg" --question "What is the diagnosis?"
 ```
 
-**Xem ví dụ chi tiết**: `python example_super_graph.py`
+**Xem ví dụ chi tiết**: `python examples/example_super_graph.py`
 
 ### Legacy Mode (Direct Routing)
 
@@ -255,33 +282,33 @@ python main.py --no-reflexion --question "..." --options "A. ..." "B. ..."
 
 ### Chạy benchmark với Medprompt:
 ```bash
-python run_benchmark.py --dataset medqa --max-samples 100
+python scripts/run_benchmark.py --dataset medqa --max-samples 100
 ```
 
 ### Chạy benchmark KHÔNG có Medprompt (để so sánh):
 ```bash
-python run_benchmark.py --dataset medqa --max-samples 100 --no-medprompt
+python scripts/run_benchmark.py --dataset medqa --max-samples 100 --no-medprompt
 ```
 
 ### Tùy chọn Medprompt:
 ```bash
 # Disable từng feature
-python run_benchmark.py --no-few-shot           # Không dùng few-shot
-python run_benchmark.py --no-cot                # Không dùng CoT
-python run_benchmark.py --no-ensemble           # Không dùng ensemble
+python scripts/run_benchmark.py --no-few-shot           # Không dùng few-shot
+python scripts/run_benchmark.py --no-cot                # Không dùng CoT
+python scripts/run_benchmark.py --no-ensemble           # Không dùng ensemble
 
 # Bật Self-Consistency (cho high-stakes questions)
-python run_benchmark.py --self-consistency --sc-samples 5
+python scripts/run_benchmark.py --self-consistency --sc-samples 5
 
 # Tùy chỉnh parameters
-python run_benchmark.py --few-shot-k 5 --ensemble-variants 7
+python scripts/run_benchmark.py --few-shot-k 5 --ensemble-variants 7
 ```
 
 ## Cấu hình Medprompt
 
 Xem chi tiết tại:
-- [CONFIG_GUIDE.md](CONFIG_GUIDE.md) - Cấu hình tổng hợp
-- [MEDPROMPT_GUIDE.md](MEDPROMPT_GUIDE.md) - Hướng dẫn Medprompt chi tiết
+- [CONFIG_GUIDE.md](docs/CONFIG_GUIDE.md) - Cấu hình tổng hợp
+- [MEDPROMPT_GUIDE.md](docs/MEDPROMPT_GUIDE.md) - Hướng dẫn Medprompt chi tiết
 
 ### Quick Settings
 
@@ -358,10 +385,14 @@ Reason: Improved reasoning after critique
 
 ## Tài liệu
 
-- [CONFIG_GUIDE.md](CONFIG_GUIDE.md) - Hướng dẫn cấu hình
-- [MEDPROMPT_GUIDE.md](MEDPROMPT_GUIDE.md) - Hướng dẫn Medprompt
-- [DEVELOPMENT_GUIDE.md](DEVELOPMENT_GUIDE.md) - Hướng dẫn phát triển
-- [architecture_diagram.md](architecture_diagram.md) - Kiến trúc chi tiết
+- [CONFIG_GUIDE.md](docs/CONFIG_GUIDE.md) - Hướng dẫn cấu hình
+- [MEDPROMPT_GUIDE.md](docs/MEDPROMPT_GUIDE.md) - Hướng dẫn Medprompt
+- [DEVELOPMENT_GUIDE.md](docs/DEVELOPMENT_GUIDE.md) - Hướng dẫn phát triển
+- [SUPER_GRAPH_GUIDE.md](docs/SUPER_GRAPH_GUIDE.md) - Hướng dẫn Super Graph
+- [MULTI_TURN_GUIDE.md](docs/MULTI_TURN_GUIDE.md) - Hướng dẫn Multi-turn Chat
+- [IMPLEMENTATION_SUMMARY.md](docs/IMPLEMENTATION_SUMMARY.md) - Tóm tắt implementation
+- [PROJECT_SUMMARY.md](docs/PROJECT_SUMMARY.md) - Tóm tắt project
+- [architecture_diagram.md](docs/architecture_diagram.md) - Kiến trúc chi tiết
 
 ## Roadmap
 
