@@ -15,6 +15,16 @@ Hệ thống multi-agent sử dụng Gemini, LangChain và LangGraph để trả
 
 👉 Xem hướng dẫn chi tiết: [SUPER_GRAPH_GUIDE.md](SUPER_GRAPH_GUIDE.md)
 
+## 💬 Multi-turn Chat - NEW!
+
+**Conversation Memory Management** với automatic summarization:
+- 🔄 **Multi-turn Conversations**: Duy trì context qua nhiều lượt hội thoại
+- 📝 **Auto Summarization**: Tự động tóm tắt conversation khi vượt ngưỡng
+- 🧠 **Smart Context**: Kết hợp summary + recent turns cho context tối ưu
+- 💾 **Session Management**: Track và export conversation sessions
+
+👉 Xem hướng dẫn chi tiết: [MULTI_TURN_GUIDE.md](MULTI_TURN_GUIDE.md)
+
 ## 🌟 Tính năng chính
 
 ### 1. Dynamic Few-shot Selection

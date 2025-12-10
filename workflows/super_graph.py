@@ -17,6 +17,9 @@ class SuperState(TypedDict):
     options: Optional[Dict[str, str]]
     question_type: str
     
+    # Conversation context (for multi-turn)
+    conversation_context: Optional[str]
+    
     # Master coordinator output
     routing_decision: Dict[str, Any]
     route_to: str  # "direct_answer", "medical_qa", "image_qa"
@@ -116,7 +119,8 @@ class SuperGraph:
             routing_decision = self.master_coordinator.analyze_and_route(
                 question=state.get('question'),
                 image_input=state.get('image_input'),
-                options=state.get('options')
+                options=state.get('options'),
+                conversation_context=state.get('conversation_context')
             )
             
             state['routing_decision'] = routing_decision
@@ -145,7 +149,8 @@ class SuperGraph:
             
             result = self.master_coordinator.answer_simple_question(
                 question=state.get('question', ''),
-                options=state.get('options')
+                options=state.get('options'),
+                conversation_context=state.get('conversation_context')
             )
             
             state['direct_answer_result'] = result
@@ -320,7 +325,8 @@ class SuperGraph:
         question: Optional[str] = None,
         image_input: Optional[str] = None,
         options: Optional[Dict[str, str]] = None,
-        question_type: str = "multiple_choice"
+        question_type: str = "multiple_choice",
+        conversation_context: Optional[str] = None
     ) -> Dict[str, Any]:
         """
         Run the super graph workflow.
@@ -330,6 +336,7 @@ class SuperGraph:
             image_input: Image path/URL (optional)
             options: Answer options (optional)
             question_type: Type of question
+            conversation_context: Previous conversation context for multi-turn
             
         Returns:
             Complete result dictionary
@@ -352,6 +359,7 @@ class SuperGraph:
             "image_input": image_input,
             "options": options,
             "question_type": question_type,
+            "conversation_context": conversation_context,
             "routing_decision": {},
             "route_to": "",
             "medical_qa_result": None,

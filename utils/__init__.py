@@ -13,6 +13,9 @@ from .ensemble import (
     format_options_text
 )
 
+# Memory management (new)
+from .memory_manager import MemoryManager, ConversationTurn
+
 __all__ = [
     # Core
     'Config', 
@@ -31,5 +34,9 @@ __all__ = [
     'ChoiceShuffler',
     'EnsembleVoter',
     'EnsembleManager',
-    'format_options_text'
+    'format_options_text',
+    
+    # Memory
+    'MemoryManager',
+    'ConversationTurn'
 ]

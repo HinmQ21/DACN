@@ -59,7 +59,7 @@ Return a JSON decision:
     "reasoning": "brief explanation of decision"
 }}"""),
             ("human", """Input Analysis:
-Question: {question}
+{conversation_context}Question: {question}
 Has Image: {has_image}
 Options Provided: {has_options}
 
@@ -90,7 +90,8 @@ Explanation: [Detailed explanation]"""),
         self,
         question: str,
         image_input: Optional[str] = None,
-        options: Optional[Dict[str, str]] = None
+        options: Optional[Dict[str, str]] = None,
+        conversation_context: Optional[str] = None
     ) -> Dict[str, Any]:
         """
         Analyze input and determine routing.
@@ -99,6 +100,7 @@ Explanation: [Detailed explanation]"""),
             question: The question text
             image_input: Path to image (if any)
             options: Multiple choice options (if any)
+            conversation_context: Previous conversation context
             
         Returns:
             Routing decision dictionary
@@ -107,7 +109,13 @@ Explanation: [Detailed explanation]"""),
             has_image = "yes" if image_input else "no"
             has_options = "yes" if options else "no"
             
+            # Format conversation context
+            context_str = ""
+            if conversation_context:
+                context_str = f"{conversation_context}\n\n"
+            
             result = self.routing_chain.invoke({
+                "conversation_context": context_str,
                 "question": question or "No question provided",
                 "has_image": has_image,
                 "has_options": has_options
@@ -147,7 +155,8 @@ Explanation: [Detailed explanation]"""),
     def answer_simple_question(
         self,
         question: str,
-        options: Optional[Dict[str, str]] = None
+        options: Optional[Dict[str, str]] = None,
+        conversation_context: Optional[str] = None
     ) -> Dict[str, Any]:
         """
         Answer a simple question directly.
@@ -155,6 +164,7 @@ Explanation: [Detailed explanation]"""),
         Args:
             question: The question to answer
             options: Multiple choice options (if any)
+            conversation_context: Previous conversation context
             
         Returns:
             Answer dictionary
@@ -162,8 +172,13 @@ Explanation: [Detailed explanation]"""),
         try:
             print("[Master Coordinator] Answering simple question directly...")
             
-            # Build question text
-            question_text = question
+            # Build question text with context
+            question_text = ""
+            if conversation_context:
+                question_text += f"{conversation_context}\n\n"
+            
+            question_text += question
+            
             if options:
                 question_text += "\n\nOptions:\n"
                 for key, value in options.items():
@@ -249,7 +264,8 @@ Explanation: [Detailed explanation]"""),
         self,
         question: Optional[str] = None,
         image_input: Optional[str] = None,
-        options: Optional[Dict[str, str]] = None
+        options: Optional[Dict[str, str]] = None,
+        conversation_context: Optional[str] = None
     ) -> Dict[str, Any]:
         """
         Complete analysis and routing decision.
@@ -258,6 +274,7 @@ Explanation: [Detailed explanation]"""),
             question: Text question
             image_input: Image path/URL
             options: Answer options
+            conversation_context: Previous conversation context
             
         Returns:
             Complete routing information
@@ -274,7 +291,8 @@ Explanation: [Detailed explanation]"""),
         routing_decision = self.route_query(
             question=question or "Analyze this image",
             image_input=image_input,
-            options=options
+            options=options,
+            conversation_context=conversation_context
         )
         
         # Add input information

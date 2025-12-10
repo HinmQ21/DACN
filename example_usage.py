@@ -333,7 +333,7 @@ def main():
     
     # Run examples
     print("\n")
-    # example_multiple_choice()
+    example_multiple_choice()
     
     # # Uncomment to run more examples
     # example_yes_no()
@@ -343,7 +343,7 @@ def main():
     # # Image-related examples (uncomment to run)
     # example_image_analysis()
     # example_image_vqa()
-    example_image_vqa_multiple_choice()
+    # example_image_vqa_multiple_choice()
     # example_auto_detect_workflow()
     
     print("\n\n" + "="*60)
