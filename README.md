@@ -4,6 +4,41 @@ Hệ thống multi-agent sử dụng Gemini, LangChain và LangGraph để trả
 
 **Tích hợp Medprompt** - phương pháp prompt engineering tiên tiến từ Microsoft để cải thiện hiệu suất trên các bài toán y tế.
 
+## ✨ Highlights
+
+- 🌐 **Web UI**: Interactive chat interface với real-time streaming
+- 🤖 **Super Graph**: Intelligent routing giữa multiple workflows
+- 💬 **Multi-turn Chat**: Conversation memory với auto-summarization
+- 🖼️ **Multimodal**: Text + Image analysis (X-ray, CT, MRI)
+- 🔬 **Medprompt**: Few-shot + CoT + Ensemble + Self-Consistency
+- 🔄 **Reflexion**: Self-correction với critique-correct-verify
+- ⚡ **FastAPI Backend**: RESTful API + Server-Sent Events (SSE)
+
+## 🚀 Quick Start
+
+### Web UI (Recommended)
+```bash
+# Install dependencies
+pip install -r requirements.txt
+
+# Start the server
+python run_server.py
+
+# Open browser at: http://localhost:8000
+```
+
+### Command Line
+```bash
+# Simple question
+python main.py --question "What is hypertension?"
+
+# Medical image analysis
+python main.py --image "path/to/xray.jpg"
+
+# Multiple choice with auto-parse
+python main.py --question "A 45-year-old presents with..."
+```
+
 ## 🚀 Super Graph - NEW!
 
 **Master Coordinator Agent** với intelligent routing tự động:
@@ -129,6 +164,20 @@ DACN/
 │   ├── image_qa_graph.py    # 🆕 Image QA workflow (subgraph)
 │   ├── super_graph.py       # 🆕 Master graph with routing
 │   └── chat_session.py      # 🆕 Multi-turn chat with memory
+├── api/                     # 🆕 FastAPI backend
+│   ├── __init__.py
+│   ├── main.py              # FastAPI app + routes
+│   ├── schemas.py           # Pydantic models
+│   ├── session_store.py     # In-memory session management
+│   └── routes/
+│       ├── chat.py          # Chat endpoints (stream, send)
+│       └── __init__.py
+├── static/                  # 🆕 Web UI Frontend
+│   ├── index.html           # Main HTML
+│   ├── css/
+│   │   └── styles.css       # Styling
+│   └── js/
+│       └── app.js           # Frontend logic (streaming, sessions)
 ├── benchmarks/              # Evaluation scripts
 │   ├── __init__.py
 │   ├── medqa_eval.py        
@@ -144,10 +193,37 @@ DACN/
 │   └── memory_manager.py    # 🆕 Conversation memory
 ├── data/                    # Data storage
 │   └── knowledge_base/      # Embedded training examples
+├── uploads/                 # 🆕 Uploaded images storage
 ├── docs/                    # 📚 Documentation
 │   ├── CONFIG_GUIDE.md
 │   ├── MEDPROMPT_GUIDE.md
 │   ├── DEVELOPMENT_GUIDE.md
+│   ├── SUPER_GRAPH_GUIDE.md
+│   ├── MULTI_TURN_GUIDE.md
+│   ├── IMPLEMENTATION_SUMMARY.md
+│   ├── PROJECT_SUMMARY.md
+│   └── architecture_diagram.md
+├── examples/                # 🎯 Example scripts
+│   ├── example_usage.py
+│   ├── example_super_graph.py
+│   ├── example_multi_turn_chat.py
+│   └── quick_start_multi_turn.py
+├── scripts/                 # 🔧 Utility scripts
+│   ├── build_knowledge_base.py
+│   ├── run_benchmark.py
+│   ├── run_benchmark_single_llm.py
+│   └── list_model.py
+├── results/                 # 📊 Benchmark results
+│   └── *.json               # Output files
+├── MedQA/                   # Dataset
+│   └── ...
+├── cache/                   # Model cache
+│   └── embeddings/
+├── main.py                  # 🚀 CLI entry point
+├── run_server.py            # 🆕 Web server entry point
+├── requirements.txt
+└── README.md
+```
 │   ├── SUPER_GRAPH_GUIDE.md
 │   ├── MULTI_TURN_GUIDE.md
 │   ├── IMPLEMENTATION_SUMMARY.md
@@ -401,13 +477,111 @@ Reason: Improved reasoning after critique
 - [x] ~~Structured Output với Pydantic Parser~~
 - [x] ~~Self-Correction với Reflexion~~
 - [x] ~~Multimodal Perception (Image Analysis & VQA)~~ 🆕
+- [x] ~~Multi-turn Chat with Memory Management~~ 🆕
+- [x] ~~Super Graph with Intelligent Routing~~ 🆕
+- [x] ~~Web UI with Real-time Streaming~~ 🆕✨
+- [x] ~~API Server with FastAPI~~ 🆕✨
 - [ ] Tích hợp thêm datasets (MedMCQA, MMLU-Medical)
 - [ ] Image-based benchmark evaluation
-- [ ] Web UI với Streamlit/Gradio
-- [ ] API server với FastAPI
+- [ ] Advanced Analytics Dashboard
+
+## 🌐 Web UI - NEW! ✨
+
+**Interactive Chat Interface** với real-time streaming và session management:
+
+### Tính năng Web UI:
+
+#### 💬 Chat Interface
+- **Real-time Streaming**: Xem câu trả lời được generate từng token
+- **Workflow Visualization**: Theo dõi các agent nodes đang chạy
+- **Markdown Support**: Render câu trả lời với formatting đẹp
+- **Confidence Display**: Hiển thị độ tin cậy và metadata
+
+#### 🖼️ Multimodal Input
+- **Upload Images**: Kéo thả hoặc click để upload ảnh y tế
+- **Paste Images**: Paste trực tiếp từ clipboard (Ctrl+V)
+- **Image Preview**: Xem preview ảnh trước khi gửi
+- **Auto-detect**: Tự động nhận diện và xử lý ảnh y tế
+
+#### 📝 Smart Question Parsing
+- **Auto-detect Options**: Tự động parse multiple choice questions
+- **Format Detection**: Nhận diện định dạng A. B. C. D. hoặc 1. 2. 3. 4.
+- **Question Type**: Tự động phân loại Yes/No hoặc Multiple Choice
+
+#### 💾 Session Management
+- **Multi-session**: Tạo và quản lý nhiều conversation sessions
+- **Session History**: Xem lại lịch sử hội thoại
+- **Export Sessions**: Export conversation thành JSON
+- **Clear/Delete**: Xóa hoặc clear sessions
+
+#### ⚡ Performance Features
+- **Debounce Protection**: Chặn duplicate requests khi nhấn Enter nhanh
+- **Request Queuing**: Queue requests để tránh overload
+- **Auto-retry**: Tự động retry khi có lỗi network
+- **Loading States**: Hiển thị trạng thái loading rõ ràng
+
+### Chạy Web UI:
+
+```bash
+# Start the API server with Web UI
+python run_server.py
+
+# Hoặc chạy trực tiếp
+uvicorn api.main:app --reload --host 0.0.0.0 --port 8000
+```
+
+Mở trình duyệt tại: **http://localhost:8000**
+
+### API Endpoints:
+
+#### Chat Endpoints
+- `POST /api/chat/send` - Send message (non-streaming)
+- `POST /api/chat/stream` - Send message (streaming with SSE)
+- `POST /api/parse-question` - Auto-parse multiple choice questions
+
+#### Session Management
+- `GET /api/sessions` - List all sessions
+- `GET /api/sessions/{session_id}` - Get session info
+- `GET /api/sessions/{session_id}/history` - Get conversation history
+- `POST /api/sessions/{session_id}/clear` - Clear session history
+- `DELETE /api/sessions/{session_id}` - Delete session
+- `GET /api/sessions/{session_id}/export` - Export session to JSON
+
+#### Image Upload
+- `POST /api/upload/image` - Upload medical image
+
+### Web UI Screenshot Features:
+
+```
+┌─────────────────────────────────────────────────────────┐
+│  🏥 Medical QA Assistant                    [Sessions]  │
+├─────────────────────────────────────────────────────────┤
+│                                                          │
+│  💬 Chat Messages                                       │
+│  ┌────────────────────────────────────────────────┐    │
+│  │ You: What causes diabetes?                     │    │
+│  │ 🕐 10:30                                        │    │
+│  └────────────────────────────────────────────────┘    │
+│                                                          │
+│  ┌────────────────────────────────────────────────┐    │
+│  │ 🤖 MedQA Assistant                             │    │
+│  │ [Workflow: Medical QA Subgraph]               │    │
+│  │ ✓ Coordinator → ✓ Web Search → ✓ Reasoning   │    │
+│  │                                                 │    │
+│  │ Diabetes is caused by...                       │    │
+│  │                                                 │    │
+│  │ 📊 Confidence: 92.5%  ⏱️ 15.3s                │    │
+│  └────────────────────────────────────────────────┘    │
+│                                                          │
+├─────────────────────────────────────────────────────────┤
+│ [📎 Upload] [Type your question...]          [Send ➤] │
+└─────────────────────────────────────────────────────────┘
+```
 
 ## References
 
 - [Medprompt Paper](https://arxiv.org/abs/2311.16452) - Microsoft Research
 - [MedQA Dataset](https://github.com/jind11/MedQA)
 - [Sentence Transformers](https://www.sbert.net/)
+- [LangGraph Documentation](https://langchain-ai.github.io/langgraph/)
+- [FastAPI Documentation](https://fastapi.tiangolo.com/)

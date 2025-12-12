@@ -17,3 +17,9 @@ sentence-transformers==2.2.2    # For embedding generation
 faiss-cpu==1.7.4                # For efficient similarity search (optional, falls back to numpy)
 torch>=2.0.0                    # Required by sentence-transformers
 transformers>=4.30.0            # Required by sentence-transformers
+
+# FastAPI Web Server
+fastapi>=0.104.0               # Web framework
+uvicorn[standard]>=0.24.0      # ASGI server
+python-multipart>=0.0.6        # For file uploads
+aiofiles>=23.0.0               # For async file operations

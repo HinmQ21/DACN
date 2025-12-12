@@ -1,9 +1,10 @@
 """Chat Session - Multi-turn conversation management."""
 
+import os
+import time
 from typing import Dict, Any, Optional, List
 from workflows.super_graph import SuperGraph
 from utils.memory_manager import MemoryManager
-import time
 
 
 class ChatSession:
@@ -96,15 +97,40 @@ class ChatSession:
             conversation_context=conversation_context
         )
         
-        # Add to memory
+        # Build full formatted response for memory storage
+        answer = result.get('answer', '')
+        explanation = result.get('explanation', '')
+        
+        # Format response same as streaming endpoint
+        full_response = f"**Answer:** {answer}" if answer else ""
+        if explanation:
+            if full_response:
+                full_response += f"\n\n**Explanation:**\n{explanation}"
+            else:
+                full_response = explanation
+        
+        # Fallback to raw answer if no formatted content
+        if not full_response:
+            full_response = answer or "No response generated."
+        
+        # Convert image file path to web URL for history display
+        image_url = None
+        if image_input:
+            filename = os.path.basename(image_input)
+            image_url = f"/uploads/{filename}"
+        
+        # Add to memory with full formatted response
         self.memory.add_turn(
             user_message=message,
-            assistant_response=result.get('answer', ''),
+            assistant_response=full_response,
             metadata={
                 'workflow_used': result.get('workflow_used'),
                 'confidence': result.get('confidence'),
                 'execution_time': result.get('execution_time'),
-                'routing_decision': result.get('routing_decision', {})
+                'routing_decision': result.get('routing_decision', {}),
+                'image_input': image_url,  # Store web URL for history display
+                'options': options,  # Store options for history display
+                'question_type': question_type
             }
         )
         
